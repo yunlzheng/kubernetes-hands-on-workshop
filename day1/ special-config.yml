@@ -1,0 +1,7 @@
+apiVersion: v1
+data:
+  special.how: very
+  special.type: charm
+kind: ConfigMap
+metadata:
+  name: special-config
