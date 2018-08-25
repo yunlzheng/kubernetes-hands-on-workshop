@@ -7,7 +7,7 @@
 * IDEA: Java集成开发环境，[下载安装地址](https://www.jetbrains.com/idea/download/#section=mac)
 * Kubectl: Kubernetes命令行工具，
 
-1, 安装Kubectl命令行工具：
+###  安装Kubectl命令行工具：
 
 ```
 brew install kubernetes-cli
@@ -28,7 +28,7 @@ monitoring-influxdb is running at https://x.x.x.x:6443/api/v1/namespaces/kube-sy
 To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 ```
 
-2, 下载初始化项目代码，并导入IDEA环境
+### 下载初始化项目代码，并导入IDEA环境
 
 从[https://github.com/yunlzheng/kubernetes-hands-on-workshop/releases/tag/v0.0.1](https://github.com/yunlzheng/kubernetes-hands-on-workshop/releases/tag/v0.0.1)下载实例项目
 
