@@ -32,7 +32,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
 ### 1.2 下载初始化项目代码，并导入IDEA环境
 
-从[https://github.com/yunlzheng/kubernetes-hands-on-workshop/releases/tag/v0.0.1](https://github.com/yunlzheng/kubernetes-hands-on-workshop/releases/tag/v0.0.1)下载实例项目
+从[http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-0.0.1.zip](http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-0.0.1.zip)下载实例项目
 
 解压到工作目录`$WORKSPACE/kube-app`
 
@@ -110,7 +110,7 @@ java -Xmx512m -Djava.security.egd=file:/dev/./urandom -jar kube-app.jar $@
 使用Docker命令行工具，打包镜像
 
 ```
-docker build -t $DOCKER_REPO .
+docker build --no-cache -t $DOCKER_REPO .
 ```
 
 验证，镜像是否能够正常运行:
@@ -120,6 +120,43 @@ docker run -it -p 8081:8080 $DOCKER_REPO
 ```
 
 ## 3. 认识Pod和Controller
+
+在项目根路径下，创建目录deply/manifests
+
+···
+cd $WORKSPACE/kube-app
+mkdir deploy
+cd deploy
+mkdir manifests
+···
+
+创建文件kube-app-pod.yaml,内容如下：
+> 注意：请修改$DOCKER_REPO到相应的镜像
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: kube-app
+  name: kube-app-pod
+spec:
+  containers:
+  - image: $DOCKER_REPO # 请更改为相应的镜像
+    name: kube-app
+```
+
+使用kubectl创建Pod实例
+
+```
+kubectl create -f kube-app-pod.yaml
+```
+
+```
+kubectl get pods
+NAME                                                        READY     STATUS            RESTARTS   AGE
+kube-app-pod                                                0/1       PodInitializing   0          5s
+```
 
 ## 4. 基于Service和Endpoint的服务发现
 
