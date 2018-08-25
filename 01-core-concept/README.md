@@ -1,6 +1,6 @@
 # Day 1 - Kubernetes Core Concept
 
-今天将从一个Spring Cloud的项目实例开始，了解Kubernetes相关的核心概念。
+今天将从一个Spring Cloud的项目实例开始，了解Kubernetes相关的核心概念。
 
 ## 1. 准备工作
 
@@ -98,7 +98,7 @@ ENTRYPOINT ["./entrypoint.sh"]
 * 阶段一：在gradle镜像中完成项目的编译
 * 阶段二：从gradle镜像中拷贝jar包，到java:8镜像中，并且使用自定义的entrypoint.sh作为启动脚本
 
-在项目根目录下创建`entrypoint.sh`，内容如下：
+在项目根目录下创建`entrypoint.sh`，内容如下：
 
 ```
 #!/usr/bin/env bash
