@@ -30,6 +30,24 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
 2, 下载初始化项目代码，并导入IDEA环境
 
+从[https://github.com/yunlzheng/kubernetes-hands-on-workshop/releases/tag/v0.0.1](https://github.com/yunlzheng/kubernetes-hands-on-workshop/releases/tag/v0.0.1)下载实例项目
+
+解压到工作目录`$WORKSPACE/kube-app`
+
+确保项目能够正常编译
+
 ```
-curl -O 
+cd $WORKSPACE/kube-app
+./gradlew clean build
+```
+
+将kube-app项目导入到IDEA，进入Application.java运行main函数：
+
+![./images/start-app.png](./images/start-app.png)
+
+启动成功后，访问8080端口，确保程序以正常运行:
+
+```
+$ curl http://localhost:8080
+This is the message from config file
 ```
