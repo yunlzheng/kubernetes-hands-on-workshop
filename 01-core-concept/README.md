@@ -23,9 +23,6 @@ brew install kubernetes-cli
 $ kubectl
 kubectl cluster-info
 Kubernetes master is running at https://x.x.x.x:6443
-Heapster is running at https://x.x.x.x:6443/api/v1/namespaces/kube-system/services/heapster/proxy
-KubeDNS is running at https://x.x.x.x:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
-monitoring-influxdb is running at https://x.x.x.x:6443/api/v1/namespaces/kube-system/services/monitoring-influxdb/proxy
 
 To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 ```
