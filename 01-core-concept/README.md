@@ -30,6 +30,15 @@ monitoring-influxdb is running at https://x.x.x.x:6443/api/v1/namespaces/kube-sy
 To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 ```
 
+初始化命名空间
+
+```
+kubectl create namespace YOUR_NAME
+alias k="kubectl -n YOUR_NAME"
+```
+
+> 注意，alias定义的别名k操作集群
+
 ### 1.2 下载初始化项目代码，并导入IDEA环境
 
 从[http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-v0.0.1.zip](http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-v0.0.1.zip)下载实例项目
@@ -110,13 +119,14 @@ java -Xmx512m -Djava.security.egd=file:/dev/./urandom -jar kube-app.jar $@
 使用Docker命令行工具，打包镜像
 
 ```
-docker build --no-cache -t $DOCKER_REPO .
+docker build --no-cache -t $DOCKER_REPO:1.2.0 .
+docker push $DOCKER_REPO:1.2.0
 ```
 
 验证，镜像是否能够正常运行:
 
 ```
-docker run -it -p 7001:7001 $DOCKER_REPO
+docker run -it -p 7001:7001 $DOCKER_REPO:1.2.0
 ```
 
 ## 3. 认识Pod
@@ -151,21 +161,21 @@ spec:
 使用kubectl创建Pod实例
 
 ```
-kubectl create -f kube-app-pod.yaml
+k create -f kube-app-pod.yaml
 ```
 
-查询所有Pod实例`kubectl get pods`
+查询所有Pod实例`k get pods`
 
 ```
-kubectl get pods
+k get pods
 NAME                                                        READY     STATUS            RESTARTS   AGE
 kube-app-pod                                                0/1       PodInitializing   0          5s
 ```
 
-查看日志`kubectl logs`:
+查看日志`k logs`:
 
 ```
-kubectl logs -f kube-app-pod
+k logs -f kube-app-pod
 ```
 
 进入容器验证`kubectl exec`
@@ -246,7 +256,8 @@ Connection: keep-alive
 重新打包镜像：
 
 ```
-docker build --no-cache -t $DOCKER_REPO .
+docker build --no-cache -t $DOCKER_REPO:1.3.2 .
+docker push $DOCKER_REPO:1.3.2
 ```
 
 为了将kube-app应用部署到Kubernetes中，可以直接在Pod中运行多个容器实例:
@@ -262,7 +273,7 @@ metadata:
   name: kube-app-pod
 spec:
   containers:
-  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app # 请更改为相应的镜像
+  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.3.2 # 请更改为相应的镜像
     name: kube-app
     imagePullPolicy: Always
   - image: jmalloc/echo-server
@@ -301,12 +312,334 @@ root@kube-app-pod:/# curl http://127.0.0.1:7001/echo/hello
 
 ## 4. 基于Service和Endpoint的服务发现
 
-## 5. 使用ConfigMap和Secret管理配置
+部署独立的echo-server, 在项目的deploy/manifests下创建文件echo-server-pod.yaml:
 
-## 6. 使用RBAC管理应用权限
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: echo
+  name: echo
+spec:
+  containers:
+  - image:  jmalloc/echo-server
+    name: echo
+```
 
-## 7. 使用Controller管理应用
+使用Kubectl部署部署echo-server：
 
-## 8. 使用Ingress开放应用访问地址
+```
+k create -f echo-server-pod.yaml
+```
+
+### 4.1 服务器端服务发现
+
+创建echo-server-svc.yaml文件，内容如下：
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    run: echo
+  name: echo
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    run: echo
+  type: ClusterIP
+```
+
+创建名为echo的service:
+
+```
+k apply -f echo-server-svc.yaml
+```
+
+使用Kubectl查询所有服务：
+
+```
+k get svc
+NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+echo         ClusterIP   172.19.14.143   <none>        80/TCP    9m
+kubernetes   ClusterIP   172.19.0.1      <none>        443/TCP   2d
+```
+
+进入kube-app验证，DNS域名：
+
+```
+k exec -it kube-app-pod -c kube-app bash
+root@kube-app-pod:/# curl http://echo
+Request served by echo
+
+HTTP/1.1 GET /
+
+Host: echo
+User-Agent: curl/7.38.0
+Accept: */*
+```
+
+在Kubernetes中内置的DNS可以通过`<svc>.<namespace>.svc.cluster.local`访问。 Service与Pod之间通过标签形成松耦合的映射关系，Service会将请求转发到标签匹配的Pod实例上。
+
+### 4.2 客户端服务发现
+
+使用describe查看资源详情，查看echo Service详细信息：
+
+```
+k describe svc echo
+
+Name:              echo
+Namespace:         default
+Labels:            run=echo
+Selector:          run=echo
+Type:              ClusterIP
+IP:                172.19.14.143
+Port:              <unset>  80/TCP
+TargetPort:        8080/TCP
+Endpoints:         172.16.1.145:8080
+Session Affinity:  None
+Events:            <none>
+```
+
+查看-o wide查看Pod的更多信息，如下：
+
+```
+k get pods echo -o wide
+NAME      READY     STATUS    RESTARTS   AGE       IP             NODE
+echo      1/1       Running   0          13m       172.16.1.145   cn-hongkong.i-j6cfsrpjaxqtf4r32l5h
+```
+
+> 思考？ Service和Pod是如何关联起来的？
+
+查看当前集群中的Endpoints信息：
+
+```
+k get endpoints
+NAME         ENDPOINTS                                               AGE
+echo         172.16.1.145:8080                                       14m
+kubernetes   192.168.0.94:6443,192.168.0.95:6443,192.168.0.96:6443   2d
+```
+
+查看endpoints详情：
+
+```
+k describe endpoints  echo
+Name:         echo
+Namespace:    default
+Labels:       run=echo
+Annotations:  <none>
+Subsets:
+  Addresses:          172.16.1.145
+  NotReadyAddresses:  <none>
+  Ports:
+    Name     Port  Protocol
+    ----     ----  --------
+    <unset>  8080  TCP
+
+Events:  <none>
+```
+
+> 思考：假设数据库部署在集群外，K8S集群中的应用应该如何访问？
+
+### 4.3 在项目中使用spring-cloud-kubernetes实现客户端服务发现
+
+在kube-app的build.gradle文件中，添加依赖：
+
+```
+...
+dependencies {
+  ...
+  compile 'org.springframework.cloud:spring-cloud-starter-kubernetes:0.3.0.RELEASE'
+}
+
+...
+```
+
+在项目中创建文件src/mian/resources/bootstrap.yaml,内容如下：
+
+```
+spring:
+  application:
+    name: kube-app
+  cloud:
+    kubernetes:
+      client:
+        namespace: ${NAMESPACE:default} # 请将default修改为自己的命名空间
+```
+
+在src/main/java/Application.java中添加以下内容：
+
+```
+public class Application {
+    #省略的部分
+
+    @Autowired
+    private DiscoveryClient discoveryClient;
+
+    @GetMapping("/services")
+    public ResponseEntity services() {
+        return ResponseEntity.ok(discoveryClient.getServices());
+    }
+
+    @GetMapping("/services/{name}")
+    public ResponseEntity service(@PathVariable("name") String name) {
+        List<ServiceInstance> instances = discoveryClient.getInstances(name);
+        return ResponseEntity.ok(instances);
+    }
+```
+
+重启应用
+
+```
+./gradlew bootRun
+```
+
+访问新的API，通过discovery client查询当前集群中所有服务：
+
+```
+curl http://localhost:7001/services
+["echo","kubernetes"]
+```
+
+通过discovery client查询服务echo的详细详情：
+
+```
+curl http://localhost:7001/services/echo
+[{
+  "serviceId":"echo",
+  "secure":false,
+  "metadata":{"run":"echo"},
+  "host":"172.16.1.145",
+  "port":8080,
+  "uri":"http://172.16.1.145:8080",
+  "scheme":null
+}]
+```
+
+使用Discvery Client重构Echo Service
+
+```
+@Service
+public class EchoService {
+
+    @Autowired
+    private DiscoveryClient discoveryClient;
+
+    public String echo(String resource) {
+
+        List<ServiceInstance> instances = discoveryClient.getInstances("echo");
+        Optional<ServiceInstance> instance = instances.stream().findAny();
+
+        if (!instance.isPresent()) {
+            throw new RuntimeException("Echo service not found now");
+        }
+
+        ResponseEntity<String> response = new RestTemplate()
+                .getForEntity(String.format("%s/echo/%s", instance.get().getUri(), resource), String.class);
+        if (response.getStatusCode().is2xxSuccessful()) {
+            return response.getBody();
+        }
+
+        throw new RuntimeException("Echo service unreachable now");
+    }
+
+}
+```
+
+构建镜像：
+
+```
+docker build --no-cache -t $DOCKER_REPO:1.4.3 .
+docker push $DOCKER_REPO:1.4.3
+```
+
+修改kube-app-pod.yaml文件如下，使用env定义环境变量：
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: kube-app
+  name: kube-app-pod
+spec:
+  containers:
+  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.3 # 请更改为相应的镜像
+    name: kube-app
+    imagePullPolicy: Always
+    env:
+    - name: NAMESPACE
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: metadata.namespace
+```
+
+重建Kube-app
+
+```
+k delete -f kube-app-pod.yaml
+k apply -f kube-app-pod.yaml
+```
+
+查看Pod日志：
+
+```
+k logs -f kube-app-pod
+2018-08-26 11:58:17.074  WARN 6 --- [           main] o.s.cloud.kubernetes.StandardPodUtils    : Failed to get pod with name:[kube-app-pod]. You should look into this if things aren't working as you expect. Are you missing serviceaccount permissions?
+io.fabric8.kubernetes.client.KubernetesClientException: Operation: [get]  for kind: [Pod]  with name: [kube-app-pod]  in namespace: [default]  failed.
+```
+
+> 思考： 为什么本地都可以正常运行？ 从KubernetesAutoConfiguration开始
+
+## 5. 使用RBAC管理应用权限
+
+> 思考： 为了能够让运行在Kubernetes集群中的应用能够访问集群相关的信息？
+
+创建deploy/manifests/kube-app-rbac-setup.yaml文件：
+
+```
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: cloud:service
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - services
+  - endpoints
+  - pods
+  - configmaps
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: cloud:service
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cloud:service
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: default # 请切换到自己的命名空间
+```
+
+## 6. 使用ConfigMap和Secret管理配置
 
 ## 总结
+
+## 课后练习
+
+如何访问运行在集群中的kube-app应用程序？

@@ -25,6 +25,8 @@ dependencies {
     compile("org.springframework.boot:spring-boot-actuator:2.0.3.RELEASE")
     compile("org.springframework.boot:spring-boot-actuator-autoconfigure:2.0.3.RELEASE")
 
+    compile 'org.springframework.cloud:spring-cloud-starter-kubernetes:0.3.0.RELEASE'
+
     testCompile 'junit:junit:4.12'
 }
 

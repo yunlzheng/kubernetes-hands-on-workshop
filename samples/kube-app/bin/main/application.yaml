@@ -1,0 +1,4 @@
+server:
+  port: 7001
+app:
+  message: This is the message from config file

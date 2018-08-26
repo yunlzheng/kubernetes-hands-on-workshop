@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: kube-app
+  cloud:
+    kubernetes:
+      client:
+        namespace: ${NAMESPACE:default}

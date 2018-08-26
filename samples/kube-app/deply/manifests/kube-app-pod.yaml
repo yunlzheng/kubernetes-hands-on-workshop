@@ -6,6 +6,12 @@ metadata:
   name: kube-app-pod
 spec:
   containers:
-  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app # 请更改为相应的镜像
+  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:0.1.4.3 # 请更改为相应的镜像
     name: kube-app
     imagePullPolicy: Always
+    env:
+    - name: NAMESPACE
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: metadata.namespace
