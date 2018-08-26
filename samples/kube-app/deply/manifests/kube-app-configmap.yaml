@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+data:
+  message: 'This is the message from configmap env'
+  application.yaml: |-
+    server:
+      port: 7001
+    app:
+      message: 'hello from config maps'
+metadata:
+  name: kube-app
