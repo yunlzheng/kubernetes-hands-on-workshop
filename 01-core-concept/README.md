@@ -119,7 +119,7 @@ docker build --no-cache -t $DOCKER_REPO .
 docker run -it -p 7001:7001 $DOCKER_REPO
 ```
 
-## 3. 认识Pod和Controller
+## 3. 认识Pod
 
 在项目根路径下，创建目录deply/manifests
 
@@ -154,12 +154,25 @@ spec:
 kubectl create -f kube-app-pod.yaml
 ```
 
-查询所有Pod实例
+查询所有Pod实例`kubectl get pods`
 
 ```
 kubectl get pods
 NAME                                                        READY     STATUS            RESTARTS   AGE
 kube-app-pod                                                0/1       PodInitializing   0          5s
+```
+
+查看日志`kubectl logs`:
+
+```
+kubectl logs -f kube-app-pod
+```
+
+进入容器验证`kubectl exec`
+
+```
+kubectl exec -it kube-app-pod bash
+root@kube-app-pod:/# curl http://127.0.0.1:7001
 ```
 
 ### 3.2 多容器Pod
@@ -170,12 +183,130 @@ kube-app-pod                                                0/1       PodInitial
 docker run -it -p 8080:8080 jmalloc/echo-server
 ```
 
+为了能够让kub-app能够使用echo-server提供的服务，在包com.github.workshop.service中创建类EchoService，内容如下
+
+```
+package com.github.workshop.service;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+@Service
+public class EchoService {
+
+    public String echo(String resource) {
+        ResponseEntity<String> response = new RestTemplate().getForEntity("http://127.0.0.1:8080/echo/" + resource, String.class);
+        if (response.getStatusCode().is2xxSuccessful()) {
+            return response.getBody();
+        }
+        throw new RuntimeException("Echo service unreachable now");
+    }
+
+}
+```
+
+在Application.java中添加API映射，如下：
+
+```
+public class Application {
+
+    .....
+
+    @GetMapping("/echo/{resource}")
+    public ResponseEntity echo(@PathVariable("resource") String resource) {
+        return ResponseEntity.ok(echoService.echo(resource));
+    }
+
+    .....
+
+}
+```
+
+重新运行应用程序：
+
+```
+./gradlew bootRun
+```
+
+访问echo api：
+
+```
+curl http://127.0.0.1:7001/echo/hello
+Request served by 619e49f5ff50
+
+HTTP/1.1 GET /echo/hello
+
+Host: 127.0.0.1:8080
+Accept: text/plain, application/json, application/*+json, */*
+User-Agent: Java/1.8.0_51
+Connection: keep-alive
+```
+
+重新打包镜像：
+
+```
+docker build --no-cache -t $DOCKER_REPO .
+```
+
+为了将kube-app应用部署到Kubernetes中，可以直接在Pod中运行多个容器实例:
+
+创建文件kube-app-pod-with-echo.yaml，内容如下：
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: kube-app
+  name: kube-app-pod
+spec:
+  containers:
+  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app # 请更改为相应的镜像
+    name: kube-app
+    imagePullPolicy: Always
+  - image: jmalloc/echo-server
+    name: echo-server
+```
+
+删除，并重建Pod
+
+```
+kubectl delete -f kube-app-pod-with-echo.yaml
+kubectl create -f kube-app-pod-with-echo.yaml
+```
+
+查看Pod状态
+
+```
+kubectl get pods
+NAME           READY     STATUS              RESTARTS   AGE
+kube-app-pod   0/2       ContainerCreating   0          7s
+```
+
+查看Pod日志
+
+```
+kubectl logs -f kube-app-pod -c kube-app
+```
+
+进入Pod，验证功能：
+
+```
+kubectl exec -it kube-app-pod -c kube-app bash
+root@kube-app-pod:/# curl http://127.0.0.1:7001/echo/hello
+```
+
+> 思考： 哪些场景时候使用多容器Pod，哪些场景不适合？
+
 ## 4. 基于Service和Endpoint的服务发现
 
 ## 5. 使用ConfigMap和Secret管理配置
 
 ## 6. 使用RBAC管理应用权限
 
-## 7. 使用Ingress开放应用访问地址
+## 7. 使用Controller管理应用
+
+## 8. 使用Ingress开放应用访问地址
 
 ## 总结
