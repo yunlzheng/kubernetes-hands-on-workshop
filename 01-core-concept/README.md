@@ -130,18 +130,17 @@ docker run -it -p 7001:7001 $DOCKER_REPO:1.2.0
 
 ## 3. 认识Pod
 
-在项目根路径下，创建目录deply/manifests
+在项目根路径下，创建目录deploy/manifests
 
 ```
 cd $WORKSPACE/kube-app
-mkdir deploy
-cd deploy
-mkdir manifests
+mkdir -p deploy/manifests
 ```
 
 ### 3.1 单容器的Pod
 
-创建文件kube-app-pod.yaml,内容如下：
+创建文件deploy/manifests/kube-app-pod.yaml,内容如下：
+
 > 注意：请修改$DOCKER_REPO到相应的镜像
 
 ```
@@ -153,14 +152,14 @@ metadata:
   name: kube-app-pod
 spec:
   containers:
-  - image: $DOCKER_REPO # 请更改为相应的镜像
+  - image: $DOCKER_REPO:1.2.0 # 请更改为相应的镜像
     name: kube-app
 ```
 
 使用kubectl创建Pod实例
 
 ```
-k create -f kube-app-pod.yaml
+k apply -f deploy/manifests/kube-app-pod.yaml
 ```
 
 查询所有Pod实例`k get pods`
@@ -177,10 +176,10 @@ kube-app-pod                                                0/1       PodInitial
 k logs -f kube-app-pod
 ```
 
-进入容器验证`kubectl exec`
+进入容器验证`k exec`
 
 ```
-kubectl exec -it kube-app-pod bash
+k exec -it kube-app-pod bash
 root@kube-app-pod:/# curl http://127.0.0.1:7001
 ```
 
@@ -261,7 +260,7 @@ docker push $DOCKER_REPO:1.3.2
 
 为了将kube-app应用部署到Kubernetes中，可以直接在Pod中运行多个容器实例:
 
-创建文件kube-app-pod-with-echo.yaml，内容如下：
+创建文件deploy/manifests/kube-app-pod-with-echo.yaml，内容如下：
 
 ```
 apiVersion: v1
@@ -282,8 +281,8 @@ spec:
 删除，并重建Pod
 
 ```
-kubectl delete -f kube-app-pod-with-echo.yaml
-kubectl create -f kube-app-pod-with-echo.yaml
+kubectl delete -f deploy/manifests/kube-app-pod-with-echo.yaml
+kubectl create -f deploy/manifests/kube-app-pod-with-echo.yaml
 ```
 
 查看Pod状态
@@ -311,7 +310,7 @@ root@kube-app-pod:/# curl http://127.0.0.1:7001/echo/hello
 
 ## 4. 基于Service和Endpoint的服务发现
 
-部署独立的echo-server, 在项目的deploy/manifests下创建文件echo-server-pod.yaml:
+部署独立的echo-server, 创建文件deploy/manifests/echo-server-pod.yaml:
 
 ```
 apiVersion: v1
@@ -329,12 +328,12 @@ spec:
 使用Kubectl部署部署echo-server：
 
 ```
-k create -f echo-server-pod.yaml
+k apply -f deploy/manifests/echo-server-pod.yaml
 ```
 
 ### 4.1 服务器端服务发现
 
-创建echo-server-svc.yaml文件，内容如下：
+创建deploy/manifests/echo-server-svc.yaml文件，内容如下：
 
 ```
 apiVersion: v1
@@ -356,7 +355,7 @@ spec:
 创建名为echo的service:
 
 ```
-k apply -f echo-server-svc.yaml
+k apply -f deploy/manifests/echo-server-svc.yaml
 ```
 
 使用Kubectl查询所有服务：
@@ -556,7 +555,7 @@ docker build --no-cache -t $DOCKER_REPO:1.4.3 .
 docker push $DOCKER_REPO:1.4.3
 ```
 
-修改kube-app-pod.yaml文件如下，使用env定义环境变量：
+修改deploy/manifests/kube-app-pod.yaml文件如下，使用env定义环境变量：
 
 ```
 apiVersion: v1
@@ -581,8 +580,8 @@ spec:
 重建Kube-app
 
 ```
-k delete -f kube-app-pod.yaml
-k apply -f kube-app-pod.yaml
+k delete -f deploy/manifests/kube-app-pod.yaml
+k apply -f deploy/manifests/kube-app-pod.yaml
 ```
 
 查看Pod日志：
@@ -635,9 +634,15 @@ subjects:
   namespace: default # 请切换到自己的命名空间
 ```
 
+```
+k create -f deploy/manifests/kube-app-rbac-setup.yaml
+```
+
+重建Pod
+
 ## 6. 使用ConfigMap和Secret管理配置
 
-> 思考：如何在Kubernetes下管理应用配置？ 环境变量/配置文件
+> 思考：如何在Kubernetes下管理应用配置?
 
 ### 6.1, 使用环境变量管理应用配置
 
@@ -679,6 +684,8 @@ spec:
       value: 'This is the message from environment'
 ```
 
+重建Pod.
+
 ## 6.2 使用ConfigMap管理应用
 
 创建文件deploy/manifests/kube-app-configmap.yaml，内容如下：
@@ -695,7 +702,7 @@ data:
 创建configmaps
 
 ```
-k create -f kube-app-configmap.yaml
+k create -f deploy/manifests/kube-app-configmap.yaml
 ```
 
 修了能够在Pod中应用配置，修改deploy/manifests/kube-app-pod.yaml:
@@ -778,7 +785,7 @@ spec:
 更新kube:
 
 ```
-k apply -f kube-app-pod.yaml
+k apply -f deploy/manifests/kube-app-pod.yaml
 ```
 
 检查pod中的内容：
