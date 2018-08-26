@@ -49,9 +49,11 @@ cd $WORKSPACE/kube-app
 ./gradlew clean build
 ```
 
-将kube-app项目导入到IDEA，进入Application.java运行main函数：
+将kube-app项目导入到IDEA，导入成功后启动应用程序：
 
-![./images/start-app.png](./images/start-app.png)
+```
+./gradlew bootRun
+```
 
 启动成功后，访问7001端口，确保程序以正常运行:
 
