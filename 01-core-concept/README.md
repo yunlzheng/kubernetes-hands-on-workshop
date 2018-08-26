@@ -95,8 +95,8 @@ ENTRYPOINT ["./entrypoint.sh"]
 
 这里采用Mutil-Stage形式定义Dockerfile文件，这样可以直接在容器中定义项目构建，以及镜像构建过程。
 
-* 阶段一：在gradle镜像中完成项目的编译
-* 阶段二：从gradle镜像中拷贝jar包，到java:8镜像中，并且使用自定义的entrypoint.sh作为启动脚本
+* 阶段一：在gradle镜像中完成项目的编译
+* 阶段二：从gradle镜像中拷贝jar包，到java:8镜像中，并且使用自定义的entrypoint.sh作为启动脚本
 
 在项目根目录下创建`entrypoint.sh`，内容如下：
 
@@ -105,7 +105,7 @@ ENTRYPOINT ["./entrypoint.sh"]
 java -Xmx512m -Djava.security.egd=file:/dev/./urandom -jar kube-app.jar $@
 ```
 
-在entrypoint.sh中，我们使用了$@，这样在运行容器时，可以添加任意的命令行参数。
+在entrypoint.sh中，我们使用了$@，这样在运行容器时，可以添加任意的命令行参数。
 
 使用Docker命令行工具，打包镜像
 
