@@ -32,7 +32,7 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 
 ### 1.2 下载初始化项目代码，并导入IDEA环境
 
-从[http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-0.0.1.zip](http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-0.0.1.zip)下载实例项目
+从[http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-v0.0.1.zip](http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-v0.0.1.zip)下载实例项目
 
 解压到工作目录`$WORKSPACE/kube-app`
 
@@ -47,10 +47,10 @@ cd $WORKSPACE/kube-app
 
 ![./images/start-app.png](./images/start-app.png)
 
-启动成功后，访问8080端口，确保程序以正常运行:
+启动成功后，访问7001端口，确保程序以正常运行:
 
 ```
-$ curl http://localhost:8080
+$ curl http://localhost:7001
 This is the message from config file
 ```
 
@@ -116,7 +116,7 @@ docker build --no-cache -t $DOCKER_REPO .
 验证，镜像是否能够正常运行:
 
 ```
-docker run -it -p 8081:8080 $DOCKER_REPO
+docker run -it -p 7001:7001 $DOCKER_REPO
 ```
 
 ## 3. 认识Pod和Controller
@@ -129,6 +129,8 @@ mkdir deploy
 cd deploy
 mkdir manifests
 ```
+
+### 3.1 单容器的Pod
 
 创建文件kube-app-pod.yaml,内容如下：
 > 注意：请修改$DOCKER_REPO到相应的镜像
@@ -152,10 +154,20 @@ spec:
 kubectl create -f kube-app-pod.yaml
 ```
 
+查询所有Pod实例
+
 ```
 kubectl get pods
 NAME                                                        READY     STATUS            RESTARTS   AGE
 kube-app-pod                                                0/1       PodInitializing   0          5s
+```
+
+### 3.2 多容器Pod
+
+假设kube-app项目依赖了名为echo-server的服务，使用容器在本地运行服务依赖。
+
+```
+docker run -it -p 8080:8080 jmalloc/echo-server
 ```
 
 ## 4. 基于Service和Endpoint的服务发现

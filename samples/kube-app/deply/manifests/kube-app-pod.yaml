@@ -8,3 +8,4 @@ spec:
   containers:
   - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app # 请更改为相应的镜像
     name: kube-app
+    imagePullPolicy: Always

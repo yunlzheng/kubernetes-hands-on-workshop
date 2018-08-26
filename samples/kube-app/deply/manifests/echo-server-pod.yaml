@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: echo
+  name: echo
+spec:
+  containers:
+  - image:  jmalloc/echo-server
+    name: echo
