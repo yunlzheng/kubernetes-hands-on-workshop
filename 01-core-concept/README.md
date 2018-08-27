@@ -75,6 +75,15 @@ export NAMESPACE=k8s-mirrors
 export DOCKER_REPO=registry.cn-hangzhou.aliyuncs.com/$NAMESPACE/kube-app
 ```
 
+确保Docker能够正常登陆镜像仓库：
+
+```
+docker login registry.cn-hangzhou.aliyuncs.com
+Username: XXXXX
+Password:
+Login Succeeded
+```
+
 ## 2 应用容器化
 
 为了能够让应用程序能够运行在Kubernetes中，我们需要对应用进行容器化。在项目根路径上创建Dockerfile文件：
@@ -128,7 +137,7 @@ docker push $DOCKER_REPO:1.2.0
 docker run -it -p 7001:7001 $DOCKER_REPO:1.2.0
 ```
 
-## 3. 认识Pod
+## 3. 使用Pod部署kube-app应用
 
 在项目根路径下，创建目录deploy/manifests
 
@@ -137,7 +146,7 @@ cd $WORKSPACE/kube-app
 mkdir -p deploy/manifests
 ```
 
-### 3.1 单容器的Pod
+### 3.1 使用单容器的Pod部署kube-app应用
 
 创建文件deploy/manifests/kube-app-pod.yaml,内容如下：
 
@@ -183,7 +192,7 @@ k exec -it kube-app-pod bash
 root@kube-app-pod:/# curl http://127.0.0.1:7001
 ```
 
-### 3.2 多容器Pod
+### 3.2 使用Pod部署应用和它的依赖
 
 假设kube-app项目依赖了名为echo-server的服务，使用容器在本地运行服务依赖。
 
@@ -308,7 +317,7 @@ root@kube-app-pod:/# curl http://127.0.0.1:7001/echo/hello
 
 > 思考： 哪些场景时候使用多容器Pod，哪些场景不适合？
 
-## 4. 基于Service和Endpoint的服务发现
+## 4. 使用Service和Endpoint找到依赖的服务
 
 部署独立的echo-server, 创建文件deploy/manifests/echo-server-pod.yaml:
 
@@ -331,7 +340,7 @@ spec:
 k apply -f deploy/manifests/echo-server-pod.yaml
 ```
 
-### 4.1 服务器端服务发现
+### 4.1 Service服务器端服务发现
 
 创建deploy/manifests/echo-server-svc.yaml文件，内容如下：
 
@@ -383,7 +392,7 @@ Accept: */*
 
 在Kubernetes中内置的DNS可以通过`<svc>.<namespace>.svc.cluster.local`访问。 Service与Pod之间通过标签形成松耦合的映射关系，Service会将请求转发到标签匹配的Pod实例上。
 
-### 4.2 客户端服务发现
+### 4.2 Endpoints客户端服务发现
 
 使用describe查看资源详情，查看echo Service详细信息：
 
