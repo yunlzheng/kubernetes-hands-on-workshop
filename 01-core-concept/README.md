@@ -38,7 +38,7 @@ alias k="kubectl -n YOUR_NAME"
 
 ### 1.2 下载初始化项目代码，并导入IDEA环境
 
-从[http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-v0.0.1.zip](http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-v0.0.1.zip)下载实例项目
+从[http://7xj61w.com1.z0.glb.clouddn.com/kube-app-v0.0.1.zip](http://7xj61w.com1.z0.glb.clouddn.com/kube-app-v0.0.1.zip)下载实例项目
 
 解压到工作目录`$WORKSPACE/kube-app`
 
