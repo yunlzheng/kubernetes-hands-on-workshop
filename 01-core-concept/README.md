@@ -71,7 +71,7 @@ This is the message from config file
 并开启自动创建仓库功能。
 
 ```
-export NAMESPACE=k8s-mirrors
+export NAMESPACE=k8s-mirrors #修改为自己的仓库
 export DOCKER_REPO=registry.cn-hangzhou.aliyuncs.com/$NAMESPACE/kube-app
 ```
 
