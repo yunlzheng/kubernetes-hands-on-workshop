@@ -20,8 +20,7 @@ brew install kubernetes-cli
 检查是否能够正常访问集群
 
 ```
-$ kubectl
-kubectl cluster-info
+$ kubectl cluster-info
 Kubernetes master is running at https://x.x.x.x:6443
 
 To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
@@ -30,8 +29,10 @@ To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
 初始化命名空间
 
 ```
-kubectl create namespace YOUR_NAME
-alias k="kubectl -n YOUR_NAME"
+$ kubectl create namespace YOUR_NAME
+$ alias k="kubectl -n YOUR_NAME" # 后续使用k操作自己的命名空间
+$ k get pods
+No resources found.
 ```
 
 > 注意，后续使用alias定义的别名k操作k8S集群
