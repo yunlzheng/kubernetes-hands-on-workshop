@@ -46,8 +46,22 @@ No resources found.
 确保项目能够正常编译
 
 ```
-cd $WORKSPACE/kube-app
-./gradlew clean build
+$ cd $WORKSPACE/kube-app
+$ ./gradlew clean build
+Welcome to Gradle 4.8.1!
+
+Here are the highlights of this release:
+ - Dependency locking
+ - Maven Publish and Ivy Publish plugins improved and marked stable
+ - Incremental annotation processing enhancements
+ - APIs to configure tasks at creation time
+
+For more details see https://docs.gradle.org/4.8.1/release-notes.html
+
+Starting a Gradle Daemon (subsequent builds will be faster)
+
+BUILD SUCCESSFUL in 12s
+4 actionable tasks: 3 executed, 1 up-to-date
 ```
 
 将kube-app项目导入到IDEA，导入成功后启动应用程序：
