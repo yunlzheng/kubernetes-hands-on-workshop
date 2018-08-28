@@ -524,7 +524,7 @@ dependencies {
 ...
 ```
 
-在项目中创建文件src/mian/resources/bootstrap.yaml,内容如下：
+在项目中创建文件src/main/resources/bootstrap.yaml,内容如下：
 
 ```
 spring:
@@ -560,14 +560,15 @@ public class Application {
 重启应用
 
 ```
-./gradlew bootRun
+$ ./gradlew bootRun
+# 省略输出
 ```
 
 访问新的API，通过discovery client查询当前集群中所有服务：
 
 ```
-curl http://localhost:7001/services
-["echo","kubernetes"]
+$ curl http://localhost:7001/services
+["echo"]
 ```
 
 通过discovery client查询服务echo的详细详情：
@@ -578,9 +579,9 @@ curl http://localhost:7001/services/echo
   "serviceId":"echo",
   "secure":false,
   "metadata":{"run":"echo"},
-  "host":"172.16.1.145",
+  "host":"172.16.2.168",
   "port":8080,
-  "uri":"http://172.16.1.145:8080",
+  "uri":"http://172.16.2.168:8080",
   "scheme":null
 }]
 ```
@@ -618,11 +619,34 @@ public class EchoService {
 构建镜像：
 
 ```
-docker build --no-cache -t $DOCKER_REPO:1.4.3 .
-docker push $DOCKER_REPO:1.4.3
+$ docker build --no-cache -t $DOCKER_REPO:1.4.3 .
+$ docker push $DOCKER_REPO:1.4.3
 ```
 
 修改deploy/manifests/kube-app-pod.yaml文件如下，使用env定义环境变量：
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: kube-app
+  name: kube-app-pod
+spec:
+  containers:
+  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.3 # 请更改为相应的镜像
+    name: kube-app
+    env:
+    - name: NAMESPACE
+      value: yunlong # 请修改为自己的命名空间
+```
+
+```
+$ k delete -f deploy/manifests/kube-app-pod.yaml
+$ k create -f deploy/manifests/kube-app-pod.yaml
+```
+
+对于环境变量K8S也支持直接获取当前Pod实例的信息，修改deploy/manifests/kube-app-pod.yaml如下所示
 
 ```
 apiVersion: v1
@@ -647,16 +671,20 @@ spec:
 重建Kube-app
 
 ```
-k delete -f deploy/manifests/kube-app-pod.yaml
-k apply -f deploy/manifests/kube-app-pod.yaml
+$ k delete -f deploy/manifests/kube-app-pod.yaml
+$ k create -f deploy/manifests/kube-app-pod.yaml
 ```
 
 查看Pod日志：
 
 ```
-k logs -f kube-app-pod
+$ k logs -f kube-app-pod
 2018-08-26 11:58:17.074  WARN 6 --- [           main] o.s.cloud.kubernetes.StandardPodUtils    : Failed to get pod with name:[kube-app-pod]. You should look into this if things aren't working as you expect. Are you missing serviceaccount permissions?
 io.fabric8.kubernetes.client.KubernetesClientException: Operation: [get]  for kind: [Pod]  with name: [kube-app-pod]  in namespace: [default]  failed.
+```
+
+```
+$ k get pods kube-app-pod -o yaml
 ```
 
 > 思考： 为什么本地都可以正常运行？ 从KubernetesAutoConfiguration开始
@@ -698,11 +726,11 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: default
-  namespace: default # 请切换到自己的命名空间
+  namespace: yunlong # 请切换到自己的命名空间
 ```
 
 ```
-k create -f deploy/manifests/kube-app-rbac-setup.yaml
+$ k create -f deploy/manifests/kube-app-rbac-setup.yaml
 ```
 
 重建Pod
@@ -723,8 +751,8 @@ app:
 ```
 
 ```
-docker build --no-cache -t $DOCKER_REPO:1.4.6 .
-docker push $DOCKER_REPO:1.4.6
+$ docker build --no-cache -t $DOCKER_REPO:1.4.6 .
+$ docker push $DOCKER_REPO:1.4.6
 ```
 
 修改，并更新deploy/manifests/kube-app-pod.yaml, 如下所示:
