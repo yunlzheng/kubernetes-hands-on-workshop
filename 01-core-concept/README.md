@@ -34,7 +34,7 @@ kubectl create namespace YOUR_NAME
 alias k="kubectl -n YOUR_NAME"
 ```
 
-> 注意，alias定义的别名k操作集群
+> 注意，后续使用alias定义的别名k操作k8S集群
 
 ### 1.2 下载初始化项目代码，并导入IDEA环境
 
