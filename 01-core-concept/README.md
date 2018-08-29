@@ -77,7 +77,7 @@ This is the message from config file
 
 ![./cr_repo.png](./images/cr_repo.png)
 
-并开启自动创建仓库功能。
+请确保当前命名空间`开启自动创建仓库功能`且仓库类型为`公有`。
 
 ```
 $ export DOCKER_NAMESPACE=k8s-mirrors #修改为自己的仓库
