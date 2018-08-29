@@ -382,7 +382,7 @@ $ k exec -it kube-app-pod -c kube-app bash
 root@kube-app-pod:/# curl http://127.0.0.1:7001/echo/hello
 ```
 
-> 思考： Pod是什么？哪些场景时候使用多容器Pod，哪些场景不适合？
+> 思考： Pod是什么？哪些场景适合使用多容器Pod，哪些场景不适合？
 
 ## 4. 使用Service和Endpoint找到依赖的服务
 
