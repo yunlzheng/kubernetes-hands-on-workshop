@@ -200,6 +200,21 @@ NAME           READY     STATUS    RESTARTS   AGE
 kube-app-pod   1/1       Running   0          8s
 ```
 
+查看Pod的启动信息`k describe`
+
+```
+$ k describe pods/kube-app-pod
+# 省略奇特输出
+  Type    Reason                 Age   From                                        Message
+  ----    ------                 ----  ----                                        -------
+  Normal  Scheduled              7s    default-scheduler                           Successfully assigned kube-app-pod to cn-beijing.i-2ze52j61t5p9z4n60c9m
+  Normal  SuccessfulMountVolume  7s    kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9m  MountVolume.SetUp succeeded for volume "default-token-tzpfg"
+  Normal  Pulling                7s    kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9m  pulling image "registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.3"
+  Normal  Pulled                 3s    kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9m  Successfully pulled image "registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.3"
+  Normal  Created                3s    kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9m  Created container
+  Normal  Started                3s    kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9m  Started container
+```
+
 查看日志`k logs`:
 
 ```
