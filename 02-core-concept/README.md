@@ -465,4 +465,99 @@ $ k create -f deploy/manifests/kube-app-pod.yaml
 
 ## 4. 使用更好的方式管理应用生命周期
 
-> 思考：直接使用Pod管理应用给你带来了哪些不好的体验？
+> 思考1：直接使用Pod管理应用给你带来了哪些不好的体验？
+> 思考2：在管理应用有哪些常见的场景?
+
+### 4.1 使用Deployment部署应用
+
+创建文件`deploy/manifests/kube-app-deployment.yaml`,内容如下所示：
+
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: kube-app
+  name: kube-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: kube-app
+  template:
+    metadata:
+      labels:
+        run: kube-app
+    spec:
+      containers:
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.6.2
+        name: kube-app
+```
+
+使用`k apply`创建Deployment资源
+
+```
+$ k apply -f deploy/manifests/kube-app-deployment.yaml
+```
+
+查看Deployments状态：
+
+```
+$ k get deployments
+NAME       DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+kube-app   1         1         1            1           3m
+```
+
+查看通过Deployment创建的kube-app实例：
+
+```
+$ k get pods
+NAME                        READY     STATUS    RESTARTS   AGE
+echo                        1/1       Running   0          4d
+kube-app-5848c4647d-5t5t9   1/1       Running   0          3m
+```
+
+常用操作：
+
+* 扩容应用
+
+```
+$ k scale deployments/kube-app --replicas=3
+deployment.extensions/kube-app scaled
+```
+
+* 更新镜像版本
+
+```
+$ k set image deployments/kube-app kube-app=registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.6
+deployment.extensions/kube-app image updated
+```
+
+* 回滚到上一个操作
+
+```
+k rollout undo deployments/kube-app
+```
+
+* 查看所有历史版本
+
+```
+$ k rollout history deployments/kube-app
+deployments "kube-app"
+REVISION  CHANGE-CAUSE
+4         <none>
+5         <none>
+6         <none>
+```
+
+* 查看历史版本详情
+
+```
+k rollout history deployments/kube-app --revision=5
+```
+
+* 回滚到指定版本
+
+```
+k rollout undo deployments/kube-app --to-revision=3
+```
