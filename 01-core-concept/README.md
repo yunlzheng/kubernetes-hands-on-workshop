@@ -77,7 +77,7 @@ This is the message from config file
 
 ![./cr_repo.png](./images/cr_repo.png)
 
-并开启自动创建仓库功能。
+请确保当前命名空间`开启自动创建仓库功能`且仓库类型为`公有`。
 
 ```
 $ export DOCKER_NAMESPACE=k8s-mirrors #修改为自己的仓库
@@ -198,6 +198,21 @@ pod/kube-app-pod created
 $ k get pods
 NAME           READY     STATUS    RESTARTS   AGE
 kube-app-pod   1/1       Running   0          8s
+```
+
+查看Pod的启动信息`k describe`
+
+```
+$ k describe pods/kube-app-pod
+# 省略奇特输出
+  Type    Reason                 Age   From                                        Message
+  ----    ------                 ----  ----                                        -------
+  Normal  Scheduled              7s    default-scheduler                           Successfully assigned kube-app-pod to cn-beijing.i-2ze52j61t5p9z4n60c9m
+  Normal  SuccessfulMountVolume  7s    kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9m  MountVolume.SetUp succeeded for volume "default-token-tzpfg"
+  Normal  Pulling                7s    kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9m  pulling image "registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.3"
+  Normal  Pulled                 3s    kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9m  Successfully pulled image "registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.3"
+  Normal  Created                3s    kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9m  Created container
+  Normal  Started                3s    kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9m  Started container
 ```
 
 查看日志`k logs`:
@@ -367,7 +382,7 @@ $ k exec -it kube-app-pod -c kube-app bash
 root@kube-app-pod:/# curl http://127.0.0.1:7001/echo/hello
 ```
 
-> 思考： Pod是什么？哪些场景时候使用多容器Pod，哪些场景不适合？
+> 思考： Pod是什么？哪些场景适合使用多容器Pod，哪些场景不适合？
 
 ## 4. 使用Service和Endpoint找到依赖的服务
 
