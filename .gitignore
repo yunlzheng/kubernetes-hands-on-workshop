@@ -1,3 +1,4 @@
 *.key
 samples/*.zip
 config
+samples/kube-app/bin

@@ -1,9 +1,0 @@
-server:
-  port: 7001
-
-management:
-  endpoint:
-    restart:
-      enabled: true
-app:
-  message: ${MESSAGE:This is the message from config file}
