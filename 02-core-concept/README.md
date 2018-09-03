@@ -84,7 +84,7 @@ export ADDRESS=39.96.133.114
 
 在浏览器中访问ingress，`https://39.96.133.114/`
 
-### 根据请求路径转发
+### 1.1 根据请求路径转发
 
 修改`deploy/manifests/kube-app-ingress.yaml`如下所示：
 
@@ -117,7 +117,7 @@ $ k apply -f deploy/manifests/kube-app-ingress.yaml
 
 尝试根据ingress规则访问服务
 
-### Virtual Hosting模式
+### 1.2 Virtual Hosting模式
 
 修改`deploy/manifests/kube-app-ingress.yaml`,如下所示：
 
@@ -211,8 +211,8 @@ app:
 ```
 
 ```
-$ docker build --no-cache -t $DOCKER_REPO:1.4.6 .
-$ docker push $DOCKER_REPO:1.4.6
+$ docker build --no-cache -t $DOCKER_REPO:2.0.1 .
+$ docker push $DOCKER_REPO:2.0.1
 ```
 
 修改，并更新deploy/manifests/kube-app-pod.yaml, 如下所示:
@@ -226,7 +226,7 @@ metadata:
   name: kube-app-pod
 spec:
   containers:
-  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.6
+  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.1
     name: kube-app
     imagePullPolicy: Always
     env:
@@ -275,7 +275,7 @@ metadata:
   name: kube-app-pod
 spec:
   containers:
-  - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.6 # 请更改为相应的镜像
+  - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.1
     name: kube-app
     imagePullPolicy: Always
     env:
@@ -334,7 +334,7 @@ metadata:
   name: kube-app-pod
 spec:
   containers:
-  - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.6 # 请更改为相应的镜像
+  - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.1
     name: kube-app
     imagePullPolicy: Always
     volumeMounts:
@@ -430,8 +430,8 @@ hello from config maps
 重新打包镜像：
 
 ```
-$ docker build --no-cache -t $DOCKER_REPO:1.4.6.2 .
-$ docker push $DOCKER_REPO:1.4.6.2
+$ docker build --no-cache -t $DOCKER_REPO:2.0.2 .
+$ docker push $DOCKER_REPO:2.0.2
 ```
 
 修改deploy/manifests/kube-app-pod.yaml:
@@ -445,7 +445,7 @@ metadata:
   name: kube-app-pod
 spec:
   containers:
-  - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.6.2 # 请更改为相应的镜像
+  - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.2 # 请更改为相应的镜像
     name: kube-app
     imagePullPolicy: Always
     env:
@@ -490,7 +490,7 @@ spec:
         run: kube-app
     spec:
       containers:
-      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.6.2
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.2
         name: kube-app
 ```
 
@@ -529,7 +529,7 @@ deployment.extensions/kube-app scaled
 * 更新镜像版本
 
 ```
-$ k set image deployments/kube-app kube-app=registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.6
+$ k set image deployments/kube-app kube-app=registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3
 deployment.extensions/kube-app image updated
 ```
 
@@ -561,3 +561,219 @@ k rollout history deployments/kube-app --revision=5
 ```
 k rollout undo deployments/kube-app --to-revision=3
 ```
+
+## 5. 还能优化些撒？
+
+> 思考1：在集群中运行应用程序可能有哪些问题？
+> 思考2：如果应用假死了呢？
+
+### 5.1 存活状态：Liveness探针
+
+创建文件`deploy/manifests/liveness-test.yaml`
+
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    test: liveness
+  name: liveness-exec
+spec:
+  containers:
+  - name: liveness
+    image: busybox
+    args:
+    - /bin/sh
+    - -c
+    - touch /tmp/healthy; sleep 30; rm -rf /tmp/healthy; sleep 600
+    livenessProbe:
+      exec:
+        command:
+        - cat
+        - /tmp/healthy
+      initialDelaySeconds: 5
+      periodSeconds: 5
+```
+
+```
+k apply -f deploy/manifests/liveness-test.yaml
+pod/liveness-exec created
+```
+
+查看Pod状态
+
+```
+$ k get pods -w
+# 省略的输出
+Events:
+  Type     Reason                 Age               From                                        Message
+  ----     ------                 ----              ----                                        -------
+  Normal   Scheduled              2m                default-scheduler                           Successfully assigned liveness-exec to cn-beijing.i-2ze52j61t5p9z4n60c9k
+  Normal   SuccessfulMountVolume  2m                kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9k  MountVolume.SetUp succeeded for volume "default-token-2ldpm"
+  Warning  Unhealthy              33s (x6 over 1m)  kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9k  Liveness probe failed: cat: can't open '/tmp/healthy': No such file or directory
+  Normal   Pulling                3s (x3 over 2m)   kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9k  pulling image "busybox"
+  Normal   Killing                3s (x2 over 1m)   kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9k  Killing container with id docker://liveness:Container failed liveness probe.. Container will be killed and recreated.
+  Normal   Pulled                 2s (x3 over 2m)   kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9k  Successfully pulled image "busybox"
+  Normal   Created                2s (x3 over 2m)   kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9k  Created container
+  Normal   Started                2s (x3 over 2m)   kubelet, cn-beijing.i-2ze52j61t5p9z4n60c9k  Started container
+
+```
+
+查看重启状态：
+
+```
+$ k get pods liveness-exec
+NAME            READY     STATUS    RESTARTS   AGE
+liveness-exec   1/1       Running   2          3m
+```
+
+为kube-app应用添加Http探针
+
+修改`src/main/java/com/github/workshop/Application.java`类，并添加新的健康检查接口：
+
+```
+public class Application {
+
+    # 省略的代码
+
+    private static final long START_AT = System.currentTimeMillis();
+
+    @GetMapping("/health")
+    public ResponseEntity health() {
+
+        if ((System.currentTimeMillis() - START_AT) / 1000 > 30) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        return ResponseEntity.ok(appConfig.getMessage());
+    }
+
+    # 省略的代码
+}
+```
+
+重新打包镜像：
+
+```
+$ docker build --no-cache -t $DOCKER_REPO:2.0.3 .
+$ docker push $DOCKER_REPO:2.0.3
+```
+
+修改`deploy/manifests/kube-app-deployment.yaml`,如下所示：
+
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: kube-app
+  name: kube-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: kube-app
+  template:
+    metadata:
+      labels:
+        run: kube-app
+    spec:
+      containers:
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像
+        imagePullPolicy: IfNotPresent
+        name: kube-app
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 7001
+            httpHeaders:
+            - name: X-Custom-Header
+              value: Awesome
+```
+
+更新Deployments：
+
+```
+k apply -f deploy/manifests/kube-app-deployment.yaml
+```
+
+> 使用describe命令查看Pod实例信息。
+
+访问应用：
+
+```
+$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
+```
+
+### 5.2 就绪状态：Readiness探针
+
+修改`deploy/manifests/kube-app-deployment.yaml`，如下所示：
+
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: kube-app
+  name: kube-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: kube-app
+  template:
+    metadata:
+      labels:
+        run: kube-app
+    spec:
+      containers:
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像
+        imagePullPolicy: IfNotPresent
+        name: kube-app
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          httpGet:
+            path: /health
+            port: 7001
+        livenessProbe:
+          initialDelaySeconds: 15
+          periodSeconds: 20
+#          tcpSocket:
+#            port: 7001
+          httpGet:
+            path: /health
+            port: 7001
+            httpHeaders:
+            - name: X-Custom-Header
+              value: Awesome
+```
+
+更新kube-app配置：
+
+```
+k apply -f deploy/manifests/kube-app-deployment.yaml
+```
+
+尝试访问应用：
+
+```
+$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
+```
+
+扩容应用后，再尝试访问应用
+
+```
+k scale deployments/kube-app --replicas=3
+$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
+```
+
+### 5.3 对应用进行调度
+
+查看主机所有标签
+
+```
+k get nodes --show-labels
+```
+
+> TODO: Node Selector/ Affinity / Anti-affinity / Taint / toleration
