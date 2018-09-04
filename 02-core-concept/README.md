@@ -1,5 +1,26 @@
 # Day 2 - Kubernetes Core Concept
 
+## 0. 课前准备工作
+
+* 准备Kubernetes命名空间：
+
+```
+$ kubectl create namespace YOUR_NAME
+$ alias k="kubectl -n YOUR_NAME" # 后续使用k操作自己的命名空间
+$ k get pods
+```
+
+* 准备镜像仓库：
+
+```
+$ export DOCKER_NAMESPACE=k8s-mirrors #修改为自己的仓库
+$ export DOCKER_REPO=registry.cn-hangzhou.aliyuncs.com/$DOCKER_NAMESPACE/kube-app
+```
+
+* 下载实例项目：
+
+本机未完成Day1内容的同学，可以从[kube-app实例项目](http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-v2.zip)下载实例项目。
+
 ## 1. 访问集群内的应用
 
 > 思考，我们现在是如何将应用暴露给用户的
@@ -8,21 +29,19 @@
 
 ```
 apiVersion: v1
-kind: Pod
+kind: Service
 metadata:
   labels:
     run: kube-app
-  name: kube-app-pod
+  name: kube-app
 spec:
-  containers:
-  - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:1.4.3
-    name: kube-app
-    env:
-    - name: NAMESPACE
-      valueFrom:
-        fieldRef:
-          apiVersion: v1
-          fieldPath: metadata.namespace
+  ports:
+  - port: 7001
+    protocol: TCP
+    targetPort: 7001
+  selector:
+    run: kube-app
+  type: ClusterIP
 ```
 
 使用`k apply`命名创建SVC:
@@ -58,10 +77,16 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: kube-app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
-  backend:
-    serviceName: kube-app
-    servicePort: 7001
+  rules:
+  - host: kube-app.$NAMESPACE.com # 修改为自己的命名空间
+    http:
+      paths:
+      - backend:
+          serviceName: kube-app
+          servicePort: 7001
 ```
 
 创建Ingress资源：
@@ -74,15 +99,17 @@ $ k apply -f deploy/manifests/kube-app-ingress.yaml
 
 ```
 $ k get ingress -o wide
-NAME               HOSTS     ADDRESS         PORTS     AGE
-kube-app-ingress   *         39.96.133.114   80        41s
+NAME               HOSTS                    ADDRESS         PORTS     AGE
+kube-app-ingress   kube-app.yunlong.com     39.96.133.114   80        41s
 ```
 
+从本机通过Ingress访问应用:
+
 ```
+export export HOST_URL=kube-101.yunlong.com
 export ADDRESS=39.96.133.114
+$ curl -H "H: ${HOST_URL}" $ADDRESS
 ```
-
-在浏览器中访问ingress，`https://39.96.133.114/`
 
 ### 1.1 根据请求路径转发
 
@@ -97,7 +124,8 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
-  - http:
+  - host: kube-101.$NAMESPACE.com # 请将$NAMESPACE修改为自己的命名空间
+    http:
       paths:
       - path: /kube-app
         backend:
@@ -117,7 +145,13 @@ $ k apply -f deploy/manifests/kube-app-ingress.yaml
 
 尝试根据ingress规则访问服务
 
-### 1.2 Virtual Hosting模式
+```
+$ export HOST_URL=kube-101.yunlong.com
+$ curl -H "H: ${HOST_URL}" $ADDRESS/kube-app
+$ curl -H "H: ${HOST_URL}" $ADDRESS/echo
+```
+
+### 1.2 根据Virtual Hosting转发
 
 修改`deploy/manifests/kube-app-ingress.yaml`,如下所示：
 
@@ -126,17 +160,15 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: kube-app-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
-  - host: kube-app.kubernetes101.com
+  - host: kube-app.$NAMESPACE.com # 请将$NAMESPACE修改为自己的命名空间
     http:
       paths:
       - backend:
           serviceName: kube-app
           servicePort: 7001
-  - host: echo.kubernetes101.com
+  - host: echo.$NAMESPACE.com # 请将$NAMESPACE修改为自己的命名空间
     http:
       paths:
       - backend:
@@ -153,8 +185,8 @@ $ k apply -f deploy/manifests/kube-app-ingress.yaml
 指定Http Header访问Ingress地址：
 
 ```
-$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
-$ curl -H 'Host: echo.kubernetes101.com' $ADDRESS
+$ export HOST_URL=kube-app.yunlong.com
+$ curl -H "H: ${HOST_URL}" $ADDRESS
 ```
 
 ## 2. 为应用传递参数
@@ -196,7 +228,7 @@ $ k apply -f deploy/manifests/kube-app-pod.yaml
 访问应用：
 
 ```
-$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
+$ curl -H 'Host: ${HOST_URL}' $ADDRESS
 ```
 
 ### 2.2, 使用环境变量管理应用配置
@@ -641,7 +673,7 @@ public class Application {
     @GetMapping("/health")
     public ResponseEntity health() {
 
-        if ((System.currentTimeMillis() - START_AT) / 1000 > 30) {
+        if ((System.currentTimeMillis() - START_AT) / 1000 > 60) {
             return ResponseEntity.badRequest().build();
         }
 
@@ -768,12 +800,84 @@ k scale deployments/kube-app --replicas=3
 $ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
 ```
 
-### 5.3 对应用进行调度
+## 5.4 Pod生命周期总结
 
-查看主机所有标签
+修改`deploy/manifests/kube-app-deployment.yaml`,如下所示：
 
 ```
-k get nodes --show-labels
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: kube-app
+  name: kube-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: kube-app
+  template:
+    metadata:
+      labels:
+        run: kube-app
+    spec:
+      initContainers:
+      - name: init
+        image: busybox
+        command: ['sh', '-c', 'echo $(date +%s): INIT >> /tmp/timing && sleep 10s']
+        volumeMounts:
+        - mountPath: /tmp
+          name: timing
+      containers:
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像
+        imagePullPolicy: IfNotPresent
+        name: kube-app
+        volumeMounts:
+        - mountPath: /tmp
+          name: timing
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          httpGet:
+            path: /health
+            port: 7001
+        livenessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          httpGet:
+            path: /health
+            port: 7001
+            httpHeaders:
+            - name: X-Custom-Header
+              value: Awesome
+        lifecycle:
+          postStart:
+            exec:
+              command:   ['sh', '-c', 'echo $(date +%s): POST-START >> /tmp/timing']
+          preStop:
+            exec:
+              command:  ['sh', '-c', 'echo $(date +%s): PRE-HOOK >> /tmp/timing']
+      volumes:
+      - name: timing
+        emptyDir: {}
+
 ```
 
-> TODO: Node Selector/ Affinity / Anti-affinity / Taint / toleration
+更新应用：
+
+```
+k apply -f deploy/manifests/kube-app-deployment.yaml
+```
+
+尝试观察Pod中kube-app容器中/tmp/timing文件内容的变化。
+
+## 6 课后扩展练习
+
+1. 尝试使用竟可能多的方式，确保每个节点上只运行一个应用实例；
+2. 在阿里云容器服务上将应用镜像修改为私有镜像，然Kubernetes能够正常启动应用；
+
+## 常见问题：
+
+1. error: there was a problem with the editor "vi"
+
+解决方法：export KUBE_EDITOR="vim"
