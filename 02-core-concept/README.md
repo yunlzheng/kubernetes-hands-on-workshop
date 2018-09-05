@@ -1039,7 +1039,7 @@ Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
 
 ### 6.2 服务发现是什么鬼？
 
-Kubernetes中服务发现主要通过每个主机上的kube-proxy组件实现，其作用是通过控制iptables将对Service ClusterIP的请求，转发到后端Endpoints中：
+Kubernetes中服务发现主要通过每个主机上的kube-proxy组件实现，其作用是通过控制iptables将对Service ClusterIP的请求，转发到后端Endpoints中，剩下就交给容器网络：
 
 以default命名空间下的nginx svc为例：
 
