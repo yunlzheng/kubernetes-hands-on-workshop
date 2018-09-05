@@ -873,7 +873,11 @@ k apply -f deploy/manifests/kube-app-deployment.yaml
 
 尝试观察Pod中kube-app容器中/tmp/timing文件内容的变化。
 
-## 6 课后扩展练习
+## 6 Kubernetes网络详解
+
+> TODO
+
+## 7 课后扩展练习
 
 1. 尝试使用竟可能多的方式，确保每个节点上只运行一个应用实例；
 2. 在阿里云容器服务上将应用镜像修改为私有镜像，然Kubernetes能够正常启动应用；
