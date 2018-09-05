@@ -922,7 +922,7 @@ kube-flannel-ds-vmsxn   2/2       Running   1          31d       192.168.3.89   
 
 #### 6.1.1 出口方向
 
-从nginx-85b44c86b8-q9t7t（172.16.2.215）所有节点的flannel实例kube-flannel-ds-86d5j查看网卡信息
+从nginx-85b44c86b8-q9t7t（172.16.2.215）所在节点的flannel实例kube-flannel-ds-86d5j查看网卡信息
 
 ```
 $ k -n kube-system exec -it kube-flannel-ds-86d5j -c kube-flannel ifconfig
@@ -1006,6 +1006,8 @@ default         192.168.3.253   0.0.0.0         UG    0      0        0 eth0
 172.17.0.0      *               255.255.0.0     U     0      0        0 docker0
 192.168.0.0     *               255.255.252.0   U     0      0        0 eth0
 ```
+
+这部分的路由转发在阿里云环境中是通过VPC路由表实现，如下所示：
 
 ![](./images/aliyun-vpc-route.png)
 
