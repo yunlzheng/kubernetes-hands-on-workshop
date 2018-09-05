@@ -875,7 +875,238 @@ k apply -f deploy/manifests/kube-app-deployment.yaml
 
 ## 6 Kubernetes网络详解
 
-> TODO
+### 6.1 容器网络Flannel，以阿里云容器服务为例
+
+```
+$ kubectl get pods -o wide --selector app=nginx
+NAME                     READY     STATUS    RESTARTS   AGE       IP             NODE
+nginx-85b44c86b8-q9t7t   1/1       Running   0          39s       172.16.2.215   cn-beijing.i-2ze52j61t5p9z4n60c9m
+nginx2-6f65c584d-nglvf   1/1       Running   0          12s       172.16.2.108   cn-beijing.i-2ze52j61t5p9z4n60c9l
+```
+
+以172.16.2.215访问172.16.2.108为例，解释Pod之间是如何访问的：
+
+查看集群所有节点
+
+```
+$ k get nodes
+NAME                                STATUS    ROLES     AGE       VERSION
+cn-beijing.i-2ze3pggklybyryt9475e   Ready     master    31d       v1.10.4
+cn-beijing.i-2ze44hu8106jqyw43i8d   Ready     master    31d       v1.10.4
+cn-beijing.i-2ze8rkx46zywd36w8noo   Ready     master    31d       v1.10.4
+cn-beijing.i-2ze52j61t5p9z4n60c9k   Ready     <none>    31d       v1.10.4
+cn-beijing.i-2ze52j61t5p9z4n60c9l   Ready     <none>    31d       v1.10.4
+cn-beijing.i-2ze52j61t5p9z4n60c9m   Ready     <none>    31d       v1.10.4
+```
+
+查看Flannel实例，Flannel通过Daemonset进行部署
+
+```
+$ k -n kube-system get daemonsets
+NAME                       DESIRED   CURRENT   READY     UP-TO-DATE   AVAILABLE   NODE SELECTOR                     AGE
+kube-flannel-ds            6         6         6         6            6           beta.kubernetes.io/arch=amd64     31d
+```
+
+查看Flannel实例，并找到nginx-85b44c86b8-q9t7t（172.16.2.215）所在节点的flannel实例kube-flannel-ds-86d5j，以及nginx2-6f65c584d-nglvf（172.16.2.108）所对应的Flannel实例kube-flannel-ds-hjlb4。
+
+```
+$ k -n kube-system get pods -o wide --selector app=flannel
+NAME                    READY     STATUS    RESTARTS   AGE       IP             NODE
+kube-flannel-ds-7zdnw   2/2       Running   4          31d       192.168.3.91   cn-beijing.i-2ze52j61t5p9z4n60c9k
+kube-flannel-ds-86d5j   2/2       Running   0          31d       192.168.3.90   cn-beijing.i-2ze52j61t5p9z4n60c9m
+kube-flannel-ds-9xn6p   2/2       Running   1          31d       192.168.3.87   cn-beijing.i-2ze44hu8106jqyw43i8d
+kube-flannel-ds-hjlb4   2/2       Running   1          31d       192.168.3.92   cn-beijing.i-2ze52j61t5p9z4n60c9l
+kube-flannel-ds-nb28r   2/2       Running   1          31d       192.168.3.88   cn-beijing.i-2ze8rkx46zywd36w8noo
+kube-flannel-ds-vmsxn   2/2       Running   1          31d       192.168.3.89   cn-beijing.i-2ze3pggklybyryt9475e
+```
+
+#### 6.1.1 出口方向
+
+从nginx-85b44c86b8-q9t7t（172.16.2.215）所有节点的flannel实例kube-flannel-ds-86d5j查看网卡信息
+
+```
+$ k -n kube-system exec -it kube-flannel-ds-86d5j -c kube-flannel ifconfig
+cni0      Link encap:Ethernet  HWaddr 0A:58:AC:10:02:81
+          inet addr:172.16.2.129  Bcast:0.0.0.0  Mask:255.255.255.128
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:613034223 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:410106254 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000
+          RX bytes:97180782429 (90.5 GiB)  TX bytes:855792296086 (797.0 GiB)
+
+docker0   Link encap:Ethernet  HWaddr 02:42:31:24:3A:76
+          inet addr:172.17.0.1  Bcast:0.0.0.0  Mask:255.255.0.0
+          UP BROADCAST MULTICAST  MTU:1500  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+eth0      Link encap:Ethernet  HWaddr 00:16:3E:12:3F:B9
+          inet addr:192.168.3.90  Bcast:192.168.3.255  Mask:255.255.252.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:1026400899 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:731775772 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000
+          RX bytes:933504290702 (869.3 GiB)  TX bytes:151441072517 (141.0 GiB)
+
+lo        Link encap:Local Loopback
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          UP LOOPBACK RUNNING  MTU:65536  Metric:1
+          RX packets:2848730 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:2848730 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1
+          RX bytes:1107009588 (1.0 GiB)  TX bytes:1107009588 (1.0 GiB)
+
+veth00c70308 Link encap:Ethernet  HWaddr D2:D9:ED:7B:3F:A7
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:10680903 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:12038380 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0
+          RX bytes:717656154 (684.4 MiB)  TX bytes:108607531374 (101.1 GiB)
+```
+
+其中veth00c70308是每个Pod实例中所有容器共享的network namespace。 并且通过网桥的方式链接到cni0网卡
+
+```
+$ k -n kube-system exec -it kube-flannel-ds-86d5j -c kube-flannel brctl show
+bridge name	bridge id		STP enabled	interfaces
+docker0		8000.024231243a76	no
+cni0		8000.0a58ac100281	no		veth00c70308
+							veth244016e7
+							veth41b59852
+							veth1bde8f9e
+							veth5758e57f
+							vethfb90332d
+							veth6fd79bb3
+							veth80ab3625
+							veth2f19245f
+							vethb593c87a
+							vethbc655860
+							vethde851a00
+							veth0c794757
+							veth46c15d7c
+							vethdddc772a
+							veth9e77c7d5
+							veth17b62b88
+							veth3810c1b0
+```
+
+从172.16.2.215向172.16.2.108，从源容器发出后通过网桥全部发送到cni0的网卡上。
+
+查看系统路由表，遗憾的是在系统中找不到任何从cni0网卡向后转发的规则：
+
+```
+$ k -n kube-system exec -it kube-flannel-ds-86d5j -c kube-flannel route
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+default         192.168.3.253   0.0.0.0         UG    0      0        0 eth0
+169.254.0.0     *               255.255.0.0     U     1002   0        0 eth0
+172.16.2.128    *               255.255.255.128 U     0      0        0 cni0
+172.17.0.0      *               255.255.0.0     U     0      0        0 docker0
+192.168.0.0     *               255.255.252.0   U     0      0        0 eth0
+```
+
+![](./images/aliyun-vpc-route.png)
+
+从172.16.2.215发送到172.16.2.108的请求，匹配的路由记录为172.16.2.0/25。流量会被转发到
+主机i-2ze52j61t5p9z4n60c9l，即Pod实例nginx2-6f65c584d-nglvf（172.16.2.108）所在的主机。
+
+#### 6.1.2 入口方向：
+
+出口方向，从源容器nginx-85b44c86b8-q9t7t（172.16.2.215）发送到nginx2-6f65c584d-nglvf（172.16.2.108)的流量已经正确的发送到目标节点i-2ze52j61t5p9z4n60c9l。
+
+查看接收流量主机的路由规则：
+
+```
+$ k -n kube-system exec -it kube-flannel-ds-hjlb4 -c kube-flannel -- route -n
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+0.0.0.0         192.168.3.253   0.0.0.0         UG    0      0        0 eth0
+169.254.0.0     0.0.0.0         255.255.0.0     U     1002   0        0 eth0
+172.16.2.0      0.0.0.0         255.255.255.128 U     0      0        0 cni0
+172.17.0.0      0.0.0.0         255.255.0.0     U     0      0        0 docker0
+192.168.0.0     0.0.0.0         255.255.252.0   U     0      0        0 eth0
+```
+
+根据主机路由表规则，发送到172.16.2.108的请求会落到路由表：
+
+```
+172.16.2.0      0.0.0.0         255.255.255.128 U     0      0        0 cni0
+```
+
+从而请求进入到cni0网卡，并发送到相应的容器。
+
+### 6.2 服务发现是什么鬼？
+
+Kubernetes中服务发现主要通过每个主机上的kube-proxy组件实现，其作用是通过控制iptables将对Service ClusterIP的请求，转发到后端Endpoints中：
+
+以default命名空间下的nginx svc为例：
+
+```
+$ kubectl get svc --selector run=nginx
+NAME      TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+nginx     ClusterIP   172.19.15.240   <none>        80/TCP    23s
+```
+
+查看Service详情，
+
+```
+$ kubectl describe svc nginx
+Name:              nginx
+Namespace:         default
+Labels:            app=nginx
+                   run=nginx
+Annotations:       <none>
+Selector:          app=nginx,run=nginx
+Type:              ClusterIP
+IP:                172.19.15.240
+Port:              <unset>  80/TCP
+TargetPort:        80/TCP
+Endpoints:         172.16.2.109:80,172.16.2.215:80
+Session Affinity:  None
+Events:            <none>
+```
+
+上述信息中可以看出该svc的ClusterIP为172.19.15.240，后端代理了2个Pod实例:172.16.2.109:80,172.16.2.215:80。
+
+在任意Node节点中找到flannel实例，查看iptables信息：
+
+```
+$ k -n kube-system exec -it kube-flannel-ds-hjlb4 -c kube-flannel -- iptables -S -t nat
+# 省略输出
+-A KUBE-SERVICES -d 39.96.133.156/32 -p tcp -m comment --comment "default/wrinkled-crocodile-selenium-hub:hub loadbalancer IP" -m tcp --dport 4444 -j KUBE-FW-SI6MMWWVN6LUBWIY
+-A KUBE-SERVICES ! -s 172.16.0.0/16 -d 172.19.15.240/32 -p tcp -m comment --comment "default/nginx: cluster IP" -m tcp --dport 80 -j KUBE-MARK-MASQ
+-A KUBE-SERVICES -d 172.19.15.240/32 -p tcp -m comment --comment "default/nginx: cluster IP" -m tcp --dport 80 -j KUBE-SVC-4N57TFCL4MD7ZTDA
+# 省略出书
+```
+
+根据路由转发规则，从Pod访问ClusterIP 172.19.15.240的80端口的请求，匹配到转发规则：
+
+```
+-A KUBE-SERVICES -d 172.19.15.240/32 -p tcp -m comment --comment "default/nginx: cluster IP" -m tcp --dport 80 -j KUBE-SVC-4N57TFCL4MD7ZTDA
+```
+
+直接跳转到KUBE-SVC-4N57TFCL4MD7ZTD：
+
+```
+-A KUBE-SVC-4N57TFCL4MD7ZTDA -m comment --comment "default/nginx:" -m statistic --mode random --probability 0.50000000000 -j KUBE-SEP-YX3BAWKTRU6SUUGM
+-A KUBE-SVC-4N57TFCL4MD7ZTDA -m comment --comment "default/nginx:" -j KUBE-SEP-QKRDMLY5MWSFYSJG
+```
+
+这里利用了iptables的--probability的特性，使连接有50%的概率进入到KUBE-SEP-YX3BAWKTRU6SUUGM，KUBE-SEP-YX3BAWKTRU6SUUGM的作用是把请求转发到172.16.2.109:80。
+
+```
+-A KUBE-SEP-YX3BAWKTRU6SUUGM -s 172.16.2.109/32 -m comment --comment "default/nginx:" -j KUBE-MARK-MASQ
+-A KUBE-SEP-YX3BAWKTRU6SUUGM -p tcp -m comment --comment "default/nginx:" -m tcp -j DNAT --to-destination 172.16.2.109:80
+```
+
+另外50%的请求，则可能进入到KUBE-SEP-QKRDMLY5MWSFYSJG，同理，该规则的作用是把请求转发到172.16.2.215:80:
+
+```
+-A KUBE-SEP-QKRDMLY5MWSFYSJG -s 172.16.2.215/32 -m comment --comment "default/nginx:" -j KUBE-MARK-MASQ
+-A KUBE-SEP-QKRDMLY5MWSFYSJG -p tcp -m comment --comment "default/nginx:" -m tcp -j DNAT --to-destination 172.16.2.215:80
+```
 
 ## 7 课后扩展练习
 
