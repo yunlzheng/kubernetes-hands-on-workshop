@@ -173,8 +173,8 @@ kube-app-ingress   kube-app.yunlong.com     39.96.133.114   80        41s
 从本机通过Ingress访问应用:
 
 ```
-export export HOST_URL=kube-101.yunlong.com
-export ADDRESS=39.96.133.114
+$ export export HOST_URL=kube-101.yunlong.com  #修改为自己命名空间下ingress的HOSTS地址
+$ export ADDRESS=39.96.133.114 # 修改为Ingress Address
 $ curl -H "H: ${HOST_URL}" $ADDRESS
 ```
 
@@ -252,7 +252,10 @@ $ k apply -f deploy/manifests/kube-app-ingress.yaml
 指定Http Header访问Ingress地址：
 
 ```
-$ export HOST_URL=kube-app.yunlong.com
+$ export HOST_URL=kube-app.yunlong.com # 修改为自己的namespace的ingress
+$ curl -H "H: ${HOST_URL}" $ADDRESS
+
+$ export HOST_URL=echo.yunlong.com # 修改为自己的namespace下的ingress
 $ curl -H "H: ${HOST_URL}" $ADDRESS
 ```
 
@@ -325,7 +328,7 @@ metadata:
   name: kube-app-pod
 spec:
   containers:
-  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.1
+  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.1 # 可以直接使用该镜像，或者修改为自己的镜像
     name: kube-app
     imagePullPolicy: Always
     env:
@@ -374,7 +377,7 @@ metadata:
   name: kube-app-pod
 spec:
   containers:
-  - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.1
+  - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.1 # 修改为自己的镜像，也可以直接使用该镜像
     name: kube-app
     imagePullPolicy: Always
     env:
@@ -400,7 +403,7 @@ $ k create -f deploy/manifests/kube-app-pod.yaml
 通过Ingress访问应用：
 
 ```
-$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
+$ curl -H 'Host: kube-app.yunlong.com' $ADDRESS
 This is the message from configmap env
 ```
 
@@ -472,7 +475,7 @@ root@kube-app-pod:/etc/config# ls
 application.yaml  message
 ```
 
-### 3.2 中间件与Kubernetes整合增强配置管理
+### 3.3 中间件与Kubernetes整合增强配置管理 (可选)
 
 在kube-app的build.gradle添加依赖：
 
@@ -589,7 +592,7 @@ spec:
         run: kube-app
     spec:
       containers:
-      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.2
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.2 # 可以直接使用该镜像、或者修改为自己的镜像
         name: kube-app
 ```
 
@@ -664,7 +667,7 @@ k rollout undo deployments/kube-app --to-revision=3
 ## 5. 还能优化些撒？
 
 > 思考1：在集群中运行应用程序可能有哪些问题？
-> 思考2：如果应用假死了呢？
+> 思考2：如何确定Pod是正常工作的？
 
 ### 5.1 存活状态：Liveness探针
 
@@ -778,7 +781,7 @@ spec:
         run: kube-app
     spec:
       containers:
-      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像，或者直接使用改镜像
         imagePullPolicy: IfNotPresent
         name: kube-app
         livenessProbe:
@@ -801,7 +804,7 @@ k apply -f deploy/manifests/kube-app-deployment.yaml
 访问应用：
 
 ```
-$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
+$ curl -H 'Host: kube-app.yunlong.com' $ADDRESS # 修改为自己Namespace下ingress的地址
 ```
 
 ### 5.2 就绪状态：Readiness探针
@@ -826,7 +829,7 @@ spec:
         run: kube-app
     spec:
       containers:
-      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像，或者直接使用改镜像
         imagePullPolicy: IfNotPresent
         name: kube-app
         readinessProbe:
@@ -857,14 +860,14 @@ k apply -f deploy/manifests/kube-app-deployment.yaml
 尝试访问应用：
 
 ```
-$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
+$ curl -H 'Host: kube-app.yunlong.com' $ADDRESS # 修改为自己Ingress的地址
 ```
 
 扩容应用后，再尝试访问应用
 
 ```
 k scale deployments/kube-app --replicas=3
-$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
+$ curl -H 'Host: kube-app.yunlong.com' $ADDRESS # 修改为自己Ingress的地址
 ```
 
 ## 5.4 Pod生命周期总结
@@ -896,7 +899,7 @@ spec:
         - mountPath: /tmp
           name: timing
       containers:
-      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像，或者直接使用该镜像
         imagePullPolicy: IfNotPresent
         name: kube-app
         volumeMounts:
