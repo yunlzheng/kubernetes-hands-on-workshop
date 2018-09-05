@@ -1098,7 +1098,7 @@ default         192.168.3.253   0.0.0.0         UG    0      0        0 eth0
 ![](./images/aliyun-vpc-route.png)
 
 从172.16.2.225发送到172.16.2.125的请求，匹配的路由记录为172.16.2.0/25。流量会被转发到
-主机i-2ze52j61t5p9z4n60c9l，即Pod实例nginx2-6f65c584d-nglvf（172.16.2.108）所在的主机。
+主机i-2ze52j61t5p9z4n60c9l，即Pod实例nginx2-6f65c584d-nglvf（172.16.2.125）所在的主机。
 
 #### 6.1.2 入口方向：
 
@@ -1132,9 +1132,9 @@ Kubernetes中服务发现主要通过每个主机上的kube-proxy组件实现，
 以default命名空间下的nginx svc为例：
 
 ```
-$ kubectl get svc --selector run=nginx
+$ kubectl get svc --selector app=nginx
 NAME      TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
-nginx     ClusterIP   172.19.15.240   <none>        80/TCP    23s
+nginx     ClusterIP   172.19.0.166   <none>        80/TCP    1m
 ```
 
 查看Service详情，
@@ -1144,19 +1144,18 @@ $ kubectl describe svc nginx
 Name:              nginx
 Namespace:         default
 Labels:            app=nginx
-                   run=nginx
 Annotations:       <none>
-Selector:          app=nginx,run=nginx
+Selector:          app=nginx
 Type:              ClusterIP
-IP:                172.19.15.240
+IP:                172.19.0.166
 Port:              <unset>  80/TCP
 TargetPort:        80/TCP
-Endpoints:         172.16.2.109:80,172.16.2.215:80
+Endpoints:         172.16.2.125:80,172.16.2.229:80
 Session Affinity:  None
 Events:            <none>
 ```
 
-上述信息中可以看出该svc的ClusterIP为172.19.15.240，后端代理了2个Pod实例:172.16.2.109:80,172.16.2.215:80。
+上述信息中可以看出该svc的ClusterIP为172.19.0.166，后端代理了2个Pod实例:172.16.2.125:80,172.16.2.229:80
 
 在任意Node节点中找到flannel实例，查看iptables信息：
 
@@ -1169,31 +1168,33 @@ $ k -n kube-system exec -it kube-flannel-ds-hjlb4 -c kube-flannel -- iptables -S
 # 省略出书
 ```
 
-根据路由转发规则，从Pod访问ClusterIP 172.19.15.240的80端口的请求，匹配到转发规则：
+根据路由转发规则，从Pod访问ClusterIP 172.19.0.166的80端口的请求，匹配到转发规则：
 
 ```
--A KUBE-SERVICES -d 172.19.15.240/32 -p tcp -m comment --comment "default/nginx: cluster IP" -m tcp --dport 80 -j KUBE-SVC-4N57TFCL4MD7ZTDA
-```
-
-直接跳转到KUBE-SVC-4N57TFCL4MD7ZTD：
+-A KUBE-SERVICES ! -s 172.16.0.0/16 -d 172.19.0.166/32 -p tcp -m comment --comment "default/nginx: cluster IP" -m tcp --dport 80 -j KUBE-MARK-MASQ
+-A KUBE-SERVICES -d 172.19.0.166/32 -p tcp -m comment --comment "default/nginx: cluster IP" -m tcp --dport 80 -j KUBE-SVC-4N57TFCL4MD7ZTDA
 
 ```
--A KUBE-SVC-4N57TFCL4MD7ZTDA -m comment --comment "default/nginx:" -m statistic --mode random --probability 0.50000000000 -j KUBE-SEP-YX3BAWKTRU6SUUGM
--A KUBE-SVC-4N57TFCL4MD7ZTDA -m comment --comment "default/nginx:" -j KUBE-SEP-QKRDMLY5MWSFYSJG
-```
 
-这里利用了iptables的--probability的特性，使连接有50%的概率进入到KUBE-SEP-YX3BAWKTRU6SUUGM，KUBE-SEP-YX3BAWKTRU6SUUGM的作用是把请求转发到172.16.2.109:80。
+直接跳转到KUBE-SVC-4N57TFCL4MD7ZTDA:
 
 ```
--A KUBE-SEP-YX3BAWKTRU6SUUGM -s 172.16.2.109/32 -m comment --comment "default/nginx:" -j KUBE-MARK-MASQ
--A KUBE-SEP-YX3BAWKTRU6SUUGM -p tcp -m comment --comment "default/nginx:" -m tcp -j DNAT --to-destination 172.16.2.109:80
+-A KUBE-SVC-4N57TFCL4MD7ZTDA -m comment --comment "default/nginx:" -m statistic --mode random --probability 0.50000000000 -j KUBE-SEP-ZWDBLNQ3XRBMUP33
+-A KUBE-SVC-4N57TFCL4MD7ZTDA -m comment --comment "default/nginx:" -j KUBE-SEP-H2XFNPZ6MLIHFOVM
 ```
 
-另外50%的请求，则可能进入到KUBE-SEP-QKRDMLY5MWSFYSJG，同理，该规则的作用是把请求转发到172.16.2.215:80:
+这里利用了iptables的--probability的特性，使连接有50%的概率进入到KUBE-SEP-ZWDBLNQ3XRBMUP33，KUBE-SEP-H2XFNPZ6MLIHFOVM的作用是把请求转发到172.16.2.125:80。
 
 ```
--A KUBE-SEP-QKRDMLY5MWSFYSJG -s 172.16.2.215/32 -m comment --comment "default/nginx:" -j KUBE-MARK-MASQ
--A KUBE-SEP-QKRDMLY5MWSFYSJG -p tcp -m comment --comment "default/nginx:" -m tcp -j DNAT --to-destination 172.16.2.215:80
+-A KUBE-SEP-ZWDBLNQ3XRBMUP33 -s 172.16.2.125/32 -m comment --comment "default/nginx:" -j KUBE-MARK-MASQ
+-A KUBE-SEP-ZWDBLNQ3XRBMUP33 -p tcp -m comment --comment "default/nginx:" -m tcp -j DNAT --to-destination 172.16.2.125:80
+```
+
+另外50%的请求，则可能进入到KUBE-SEP-QKRDMLY5MWSFYSJG，同理，该规则的作用是把请求转发到172.16.2.229:80:
+
+```
+-A KUBE-SEP-H2XFNPZ6MLIHFOVM -s 172.16.2.229/32 -m comment --comment "default/nginx:" -j KUBE-MARK-MASQ
+-A KUBE-SEP-H2XFNPZ6MLIHFOVM -p tcp -m comment --comment "default/nginx:" -m tcp -j DNAT --to-destination 172.16.2.229:80
 ```
 
 ## 7 课后扩展练习
