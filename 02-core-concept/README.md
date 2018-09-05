@@ -954,11 +954,11 @@ Kubernetes网络设计的原则：
 ```
 $ kubectl get pods -o wide --selector app=nginx
 NAME                     READY     STATUS    RESTARTS   AGE       IP             NODE
-nginx-85b44c86b8-q9t7t   1/1       Running   0          39s       172.16.2.215   cn-beijing.i-2ze52j61t5p9z4n60c9m
-nginx2-6f65c584d-nglvf   1/1       Running   0          12s       172.16.2.108   cn-beijing.i-2ze52j61t5p9z4n60c9l
+nginx-56f766d96f-2dl9t   1/1       Running   0          2m        172.16.2.229   cn-beijing.i-2ze52j61t5p9z4n60c9m
+nginx2-6f4bb4799-t84rh   1/1       Running   0          3m        172.16.2.125   cn-beijing.i-2ze52j61t5p9z4n60c9l
 ```
 
-以172.16.2.215访问172.16.2.108为例，解释Pod之间是如何访问的：
+以172.16.2.229访问172.16.2.125为例，解释Pod之间是如何访问的：
 
 查看集群所有节点
 
@@ -981,7 +981,7 @@ NAME                       DESIRED   CURRENT   READY     UP-TO-DATE   AVAILABLE 
 kube-flannel-ds            6         6         6         6            6           beta.kubernetes.io/arch=amd64     31d
 ```
 
-查看Flannel实例，并找到nginx-85b44c86b8-q9t7t（172.16.2.215）所在节点的flannel实例kube-flannel-ds-86d5j，以及nginx2-6f65c584d-nglvf（172.16.2.108）所对应的Flannel实例kube-flannel-ds-hjlb4。
+查看Flannel实例，并找到nginx-56f766d96f-2dl9t（172.16.2.229）所在节点的flannel实例kube-flannel-ds-86d5j，以及nginx2-6f4bb4799-t84rh（172.16.2.125）所对应的Flannel实例kube-flannel-ds-hjlb4。
 
 ```
 $ k -n kube-system get pods -o wide --selector app=flannel
@@ -1008,7 +1008,7 @@ FLANNEL_IPMASQ=true
 
 #### 6.1.1 出口方向
 
-从nginx-85b44c86b8-q9t7t（172.16.2.215）所在节点的flannel实例kube-flannel-ds-86d5j查看网卡信息
+从nginx-56f766d96f-2dl9t（172.16.2.229）所在节点的flannel实例kube-flannel-ds-86d5j查看网卡信息
 
 ```
 $ k -n kube-system exec -it kube-flannel-ds-86d5j -c kube-flannel ifconfig
@@ -1078,7 +1078,7 @@ cni0		8000.0a58ac100281	no		veth00c70308
 							veth3810c1b0
 ```
 
-从172.16.2.215向172.16.2.108，从源容器发出后通过网桥全部发送到cni0的网卡上。
+从172.16.2.229向172.16.2.125，从源容器发出后通过网桥全部发送到cni0的网卡上。
 
 查看系统路由表，遗憾的是在系统中找不到任何从cni0网卡向后转发的规则：
 
@@ -1097,12 +1097,12 @@ default         192.168.3.253   0.0.0.0         UG    0      0        0 eth0
 
 ![](./images/aliyun-vpc-route.png)
 
-从172.16.2.215发送到172.16.2.108的请求，匹配的路由记录为172.16.2.0/25。流量会被转发到
+从172.16.2.225发送到172.16.2.125的请求，匹配的路由记录为172.16.2.0/25。流量会被转发到
 主机i-2ze52j61t5p9z4n60c9l，即Pod实例nginx2-6f65c584d-nglvf（172.16.2.108）所在的主机。
 
 #### 6.1.2 入口方向：
 
-出口方向，从源容器nginx-85b44c86b8-q9t7t（172.16.2.215）发送到nginx2-6f65c584d-nglvf（172.16.2.108)的流量已经正确的发送到目标节点i-2ze52j61t5p9z4n60c9l。
+出口方向，从源容器nginx-56f766d96f-2dl9t（172.16.2.229）发送到nginx2-6f4bb4799-t84rh（172.16.2.125)的流量已经正确的发送到目标节点i-2ze52j61t5p9z4n60c9l。
 
 查看接收流量主机的路由规则：
 
@@ -1117,7 +1117,7 @@ Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
 192.168.0.0     0.0.0.0         255.255.252.0   U     0      0        0 eth0
 ```
 
-根据主机路由表规则，发送到172.16.2.108的请求会落到路由表：
+根据主机路由表规则，发送到172.16.2.125的请求会落到路由表：
 
 ```
 172.16.2.0      0.0.0.0         255.255.255.128 U     0      0        0 cni0
