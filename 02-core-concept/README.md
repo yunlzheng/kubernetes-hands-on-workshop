@@ -4,6 +4,8 @@
 
 * 准备Kubernetes命名空间：
 
+> 未安装kubernetes-cli的同学，参考Day 1的文档安装
+
 ```
 $ kubectl create namespace YOUR_NAME
 $ alias k="kubectl -n YOUR_NAME" # 后续使用k操作自己的命名空间
