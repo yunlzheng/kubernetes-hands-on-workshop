@@ -23,9 +23,71 @@ $ export DOCKER_REPO=registry.cn-hangzhou.aliyuncs.com/$DOCKER_NAMESPACE/kube-ap
 
 本机未完成Day1内容的同学，可以从[kube-app实例项目](http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-v2.zip)下载实例项目。
 
+
 ## 1. 访问集群内的应用
 
 > 思考，我们现在是如何将应用暴露给用户的
+
+确保kube-app已经正常运行：
+
+修改deploy/manifests/kube-app-rbac-setup.yaml：
+
+```
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: cloud:service
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - services
+  - endpoints
+  - pods
+  - configmaps
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cloud:service
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: yunlong # 请切换到自己的命名空间
+```
+
+准备应用
+
+```
+$ k apply -f deploy/manifests/kube-app-rbac-setup.yaml
+$ k apply -f deploy/manifests/echo-server-pod.yaml
+$ k apply -f deploy/manifests/echo-server-svc.yaml
+$ k apply -f deploy/manifests/kube-app-pod.yaml
+```
+
+验证Pod能够正常运行
+
+```
+$ k exec -it kube-app-pod curl http://127.0.0.1:7001/echo/a
+Request served by echo
+
+HTTP/1.1 GET /echo/a
+
+Host: 172.16.2.123:8080
+Accept: text/plain, application/json, application/*+json, */*
+User-Agent: Java/1.8.0_111
+Connection: keep-alive
+```
 
 创建Service并且关联kube-app应用，创建文件`deploy/manifests/kube-app-svc.yaml`：
 
