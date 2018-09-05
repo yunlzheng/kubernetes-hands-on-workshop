@@ -23,10 +23,7 @@ $ export DOCKER_REPO=registry.cn-hangzhou.aliyuncs.com/$DOCKER_NAMESPACE/kube-ap
 
 本机未完成Day1内容的同学，可以从[kube-app实例项目](http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-v2.zip)下载实例项目。
 
-
-## 1. 访问集群内的应用
-
-> 思考，我们现在是如何将应用暴露给用户的
+* 准备应用
 
 确保kube-app已经正常运行：
 
@@ -88,6 +85,12 @@ Accept: text/plain, application/json, application/*+json, */*
 User-Agent: Java/1.8.0_111
 Connection: keep-alive
 ```
+
+## 1. 访问集群内的应用
+
+> 思考，我们现在是如何将应用暴露给用户的
+
+
 
 创建Service并且关联kube-app应用，创建文件`deploy/manifests/kube-app-svc.yaml`：
 
