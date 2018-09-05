@@ -1012,11 +1012,11 @@ default         192.168.3.253   0.0.0.0         UG    0      0        0 eth0
 ![](./images/aliyun-vpc-route.png)
 
 从172.16.2.215发送到172.16.2.108的请求，匹配的路由记录为172.16.2.0/25。流量会被转发到
-主机i-2ze52j61t5p9z4n60c9l，即Pod实例nginx2-6f65c584d-nglvf（172.16.2.108）所在的主机。
+主机i-2ze52j61t5p9z4n60c9l，即Pod实例nginx2-6f65c584d-nglvf（172.16.2.108）所在的主机。
 
 #### 6.1.2 入口方向：
 
-出口方向，从源容器nginx-85b44c86b8-q9t7t（172.16.2.215）发送到nginx2-6f65c584d-nglvf（172.16.2.108)的流量已经正确的发送到目标节点i-2ze52j61t5p9z4n60c9l。
+出口方向，从源容器nginx-85b44c86b8-q9t7t（172.16.2.215）发送到nginx2-6f65c584d-nglvf（172.16.2.108)的流量已经正确的发送到目标节点i-2ze52j61t5p9z4n60c9l。
 
 查看接收流量主机的路由规则：
 
@@ -1083,7 +1083,7 @@ $ k -n kube-system exec -it kube-flannel-ds-hjlb4 -c kube-flannel -- iptables -S
 # 省略出书
 ```
 
-根据路由转发规则，从Pod访问ClusterIP 172.19.15.240的80端口的请求，匹配到转发规则：
+根据路由转发规则，从Pod访问ClusterIP 172.19.15.240的80端口的请求，匹配到转发规则：
 
 ```
 -A KUBE-SERVICES -d 172.19.15.240/32 -p tcp -m comment --comment "default/nginx: cluster IP" -m tcp --dport 80 -j KUBE-SVC-4N57TFCL4MD7ZTDA
