@@ -875,6 +875,12 @@ k apply -f deploy/manifests/kube-app-deployment.yaml
 
 ## 6 Kubernetes网络详解
 
+在Kubernetes网络中存在两种IP（Pod IP和Service Cluster IP），Pod IP 地址是实际存在于某个网卡(可以是虚拟设备)上的，Service Cluster IP它是一个虚拟IP，是由kube-proxy使用Iptables规则重新定向到其本地端口，再均衡到后端Pod的。
+
+Kubernetes网络设计的原则：
+
+* 每个Pod都拥有一个独立的IP地址（IPper Pod），而且假定所有的pod都在一个可以直接连通的、扁平的网络空间中。
+
 ### 6.1 容器网络Flannel，以阿里云容器服务为例
 
 ```
@@ -919,6 +925,18 @@ kube-flannel-ds-hjlb4   2/2       Running   1          31d       192.168.3.92   
 kube-flannel-ds-nb28r   2/2       Running   1          31d       192.168.3.88   cn-beijing.i-2ze8rkx46zywd36w8noo
 kube-flannel-ds-vmsxn   2/2       Running   1          31d       192.168.3.89   cn-beijing.i-2ze3pggklybyryt9475e
 ```
+
+每个节点通过ETCD统一进行网段分配，以kube-flannel-ds-hjlb4所在节点为例，查看：
+
+```
+$ k -n kube-system exec -it kube-flannel-ds-hjlb4 -c kube-flannel cat /run/flannel/subnet.env
+FLANNEL_NETWORK=172.16.0.0/16
+FLANNEL_SUBNET=172.16.2.1/25
+FLANNEL_MTU=1500
+FLANNEL_IPMASQ=true
+```
+
+该配置表明该节点上所有容器的POD IP网段在172.16.2.1/25中，分配的IP地址在`172.16.2.1 ~ 172.16.2.126`之间，共126个可用IP地址。也说明了该节点上运行的最大Pod实例数。
 
 #### 6.1.1 出口方向
 
