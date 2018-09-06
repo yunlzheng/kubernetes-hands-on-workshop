@@ -253,10 +253,10 @@ $ k apply -f deploy/manifests/kube-app-ingress.yaml
 
 ```
 $ export HOST_URL=kube-app.yunlong.com # 修改为自己的namespace的ingress
-$ curl -H "H: ${HOST_URL}" $ADDRESS
+$ curl -H "host: ${HOST_URL}" $ADDRESS
 
 $ export HOST_URL=echo.yunlong.com # 修改为自己的namespace下的ingress
-$ curl -H "H: ${HOST_URL}" $ADDRESS
+$ curl -H "host: ${HOST_URL}" $ADDRESS
 ```
 
 ## 2. 为应用传递参数
@@ -298,7 +298,7 @@ $ k apply -f deploy/manifests/kube-app-pod.yaml
 访问应用：
 
 ```
-$ curl -H 'Host: ${HOST_URL}' $ADDRESS
+$ curl -H 'host: ${HOST_URL}' $ADDRESS
 ```
 
 ### 2.2, 使用环境变量管理应用配置
@@ -403,7 +403,7 @@ $ k create -f deploy/manifests/kube-app-pod.yaml
 通过Ingress访问应用：
 
 ```
-$ curl -H 'Host: kube-app.yunlong.com' $ADDRESS
+$ curl -H 'host: kube-app.yunlong.com' $ADDRESS
 This is the message from configmap env
 ```
 
@@ -804,7 +804,7 @@ k apply -f deploy/manifests/kube-app-deployment.yaml
 访问应用：
 
 ```
-$ curl -H 'Host: kube-app.yunlong.com' $ADDRESS # 修改为自己Namespace下ingress的地址
+$ curl -H 'host: kube-app.yunlong.com' $ADDRESS # 修改为自己Namespace下ingress的地址
 ```
 
 ### 5.2 就绪状态：Readiness探针
@@ -860,14 +860,14 @@ k apply -f deploy/manifests/kube-app-deployment.yaml
 尝试访问应用：
 
 ```
-$ curl -H 'Host: kube-app.yunlong.com' $ADDRESS # 修改为自己Ingress的地址
+$ curl -H 'host: kube-app.yunlong.com' $ADDRESS # 修改为自己Ingress的地址
 ```
 
 扩容应用后，再尝试访问应用
 
 ```
 k scale deployments/kube-app --replicas=3
-$ curl -H 'Host: kube-app.yunlong.com' $ADDRESS # 修改为自己Ingress的地址
+$ curl -H 'host: kube-app.yunlong.com' $ADDRESS # 修改为自己Ingress的地址
 ```
 
 ## 5.4 Pod生命周期总结
