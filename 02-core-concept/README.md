@@ -1052,7 +1052,7 @@ veth00c70308 Link encap:Ethernet  HWaddr D2:D9:ED:7B:3F:A7
           RX bytes:717656154 (684.4 MiB)  TX bytes:108607531374 (101.1 GiB)
 ```
 
-其中veth00c70308是每个Pod实例中所有容器共享的network namespace。 并且通过网桥的方式链接到cni0网卡
+其中veth00c70308是每个Pod实例的虚拟网卡。 并且通过网桥的方式链接到cni0网卡
 
 ```
 $ k -n kube-system exec -it kube-flannel-ds-86d5j -c kube-flannel brctl show
