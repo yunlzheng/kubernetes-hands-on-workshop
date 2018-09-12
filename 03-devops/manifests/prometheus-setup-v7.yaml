@@ -11,7 +11,7 @@ data:
     - job_name: 'prometheus'
       static_configs:
       - targets: ['localhost:9090']
-    - job_name: 'services'
+    - job_name: 'service-probe'
       metrics_path: /probe
       params:
         module: [http_2xx]
