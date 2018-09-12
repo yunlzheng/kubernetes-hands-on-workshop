@@ -606,7 +606,7 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
-  - host: blackbox-exporter.yunlong.com
+  - host: blackbox-exporter.$NAMESPACE.com #请修改为自己的命名空间
     http:
       paths:
       - backend:
@@ -657,7 +657,7 @@ spec:
 k apply -f manifests/blackbox-exporter-setup.yaml -n kube-public
 ```
 
-打开 http://blackbox-exporter.$NAMESPACE.com
+打开 http://blackbox-exporter.$NAMESPACE.com #请修改为自己的IP
 
 尝试使用网络探针探测： /probe?module=http_2xx&target=www.taobao.com
 
