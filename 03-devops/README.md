@@ -12,6 +12,15 @@ $ alias k="kubectl -n YOUR_NAME" # 后续使用k操作自己的命名空间
 $ k get pods
 ```
 
+清理资源：
+
+```
+$ k delete ingress --all
+$ k delete deployments --all
+$ k delete service --all
+$ k delete pod --all
+```
+
 * 准备镜像仓库：
 
 ```
@@ -21,7 +30,7 @@ $ export DOCKER_REPO=registry.cn-hangzhou.aliyuncs.com/$DOCKER_NAMESPACE/kube-ap
 
 * 下载实例项目：
 
-点击下载[kubeapp](http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-v3.zip)实例程序
+点击下载[kubeapp](http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-3.zip)实例程序
 
 ## 2. 初识Prometheus
 
