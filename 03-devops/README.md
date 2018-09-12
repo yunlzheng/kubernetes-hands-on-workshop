@@ -478,6 +478,8 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    k8s.io/probe: "true"
   labels:
     run: kube-app
   name: kube-app
