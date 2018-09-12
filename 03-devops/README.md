@@ -592,6 +592,149 @@ k apply -f manifests/prometheus-setup-v6.yaml
 
 ## 9. 黑盒监控：探测Service可用性
 
-> TODO:
+部署Blackbox Exporter，创建`manifests/blackbox-exporter-setup.yaml`:
+
+```
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: blackbox-exporter
+  namespace: kube-public
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: blackbox-exporter.yunlong.com
+    http:
+      paths:
+      - backend:
+          serviceName: blackbox-exporter
+          servicePort: 9115
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: blackbox-exporter
+  name: blackbox-exporter
+  namespace: kube-public
+spec:
+  ports:
+  - name: blackbox
+    port: 9115
+    protocol: TCP
+  selector:
+    app: blackbox-exporter
+  type: ClusterIP
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: blackbox-exporter
+  name: blackbox-exporter
+  namespace: kube-public
+spec:
+  selector:
+    matchLabels:
+      app: blackbox-exporter
+  template:
+    metadata:
+      labels:
+        app: blackbox-exporter
+    spec:
+      containers:
+      - image: prom/blackbox-exporter
+        imagePullPolicy: IfNotPresent
+        name: blackbox-exporter
+```
+
+在kube-public下创建公共的blackbox exporter实例
+
+```
+k apply -f manifests/blackbox-exporter-setup.yaml -n kube-public
+```
+
+打开 http://blackbox-exporter.$NAMESPACE.com
+
+尝试使用网络探针探测： /probe?module=http_2xx&target=www.taobao.com
+
+创建`manifests/prometheus-setup-v7.yaml`，如下所示：
+
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+data:
+  prometheus.yml: |-
+    global:
+      scrape_interval:     15s 
+      evaluation_interval: 15s
+    scrape_configs:
+    - job_name: 'prometheus'
+      static_configs:
+      - targets: ['localhost:9090']
+    - job_name: 'services'
+      metrics_path: /probe
+      params:
+        module: [http_2xx]
+      kubernetes_sd_configs:
+      - role: service
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_service_annotation_k8s_io_probe]
+        action: keep
+        regex: true
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: blackbox-exporter.kube-public.svc.cluster.local:9115
+      - source_labels: [__param_target]
+        target_label: instance
+      - action: labelmap
+        regex: __meta_kubernetes_service_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_service_name]
+        target_label: kubernetes_name
+    - job_name: 'pods'
+      kubernetes_sd_configs:
+      - role: pod
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_k8s_io_should_be_scraped]
+        action: keep
+        regex: true
+      - action: labelmap
+        regex: __meta_kubernetes_pod_(.+)
+      - source_labels: [__meta_kubernetes_pod_annotation_k8s_io_metric_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_k8s_io_metric_port]
+        action: replace
+        regex: (.+)
+        target_label: __address__
+        separator: ":"
+        replacement: ${1}
+    - job_name: 'node'
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_node_label_node_role_kubernetes_io_master]
+        action: drop
+        regex: true
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      - source_labels: [__meta_kubernetes_node_address_InternalIP]
+        regex: (.+)
+        target_label: __address__
+        replacement: ${1}:9100
+```
+
+更新配置
+
+```
+k apply -f manifests/prometheus-setup-v7.yaml
+```
 
 ## 10. 练习：完善Grafana Dashboard
