@@ -23,9 +23,74 @@ $ export DOCKER_REPO=registry.cn-hangzhou.aliyuncs.com/$DOCKER_NAMESPACE/kube-ap
 
 本机未完成Day1内容的同学，可以从[kube-app实例项目](http://7pn5d3.com1.z0.glb.clouddn.com/kube-app-v2.zip)下载实例项目。
 
+* 准备应用
+
+确保kube-app已经正常运行：
+
+修改deploy/manifests/kube-app-rbac-setup.yaml：
+
+```
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: cloud:service
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - services
+  - endpoints
+  - pods
+  - configmaps
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cloud:service
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: yunlong # 请切换到自己的命名空间
+```
+
+准备应用
+
+```
+$ k apply -f deploy/manifests/kube-app-rbac-setup.yaml
+$ k apply -f deploy/manifests/echo-server-pod.yaml
+$ k apply -f deploy/manifests/echo-server-svc.yaml
+$ k apply -f deploy/manifests/kube-app-pod.yaml
+```
+
+验证Pod能够正常运行
+
+```
+$ k exec -it kube-app-pod curl http://127.0.0.1:7001/echo/a
+Request served by echo
+
+HTTP/1.1 GET /echo/a
+
+Host: 172.16.2.123:8080
+Accept: text/plain, application/json, application/*+json, */*
+User-Agent: Java/1.8.0_111
+Connection: keep-alive
+```
+
 ## 1. 访问集群内的应用
 
 > 思考，我们现在是如何将应用暴露给用户的
+
+
 
 创建Service并且关联kube-app应用，创建文件`deploy/manifests/kube-app-svc.yaml`：
 
@@ -108,8 +173,8 @@ kube-app-ingress   kube-app.yunlong.com     39.96.133.114   80        41s
 从本机通过Ingress访问应用:
 
 ```
-export export HOST_URL=kube-101.yunlong.com
-export ADDRESS=39.96.133.114
+$ export export HOST_URL=kube-101.yunlong.com  #修改为自己命名空间下ingress的HOSTS地址
+$ export ADDRESS=39.96.133.114 # 修改为Ingress Address
 $ curl -H "H: ${HOST_URL}" $ADDRESS
 ```
 
@@ -187,8 +252,11 @@ $ k apply -f deploy/manifests/kube-app-ingress.yaml
 指定Http Header访问Ingress地址：
 
 ```
-$ export HOST_URL=kube-app.yunlong.com
-$ curl -H "H: ${HOST_URL}" $ADDRESS
+$ export HOST_URL=kube-app.yunlong.com # 修改为自己的namespace的ingress
+$ curl -H "host: ${HOST_URL}" $ADDRESS
+
+$ export HOST_URL=echo.yunlong.com # 修改为自己的namespace下的ingress
+$ curl -H "host: ${HOST_URL}" $ADDRESS
 ```
 
 ## 2. 为应用传递参数
@@ -230,7 +298,7 @@ $ k apply -f deploy/manifests/kube-app-pod.yaml
 访问应用：
 
 ```
-$ curl -H 'Host: ${HOST_URL}' $ADDRESS
+$ curl -H 'host: ${HOST_URL}' $ADDRESS
 ```
 
 ### 2.2, 使用环境变量管理应用配置
@@ -260,7 +328,7 @@ metadata:
   name: kube-app-pod
 spec:
   containers:
-  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.1
+  - image:  registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.1 # 可以直接使用该镜像，或者修改为自己的镜像
     name: kube-app
     imagePullPolicy: Always
     env:
@@ -309,7 +377,7 @@ metadata:
   name: kube-app-pod
 spec:
   containers:
-  - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.1
+  - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.1 # 修改为自己的镜像，也可以直接使用该镜像
     name: kube-app
     imagePullPolicy: Always
     env:
@@ -335,7 +403,7 @@ $ k create -f deploy/manifests/kube-app-pod.yaml
 通过Ingress访问应用：
 
 ```
-$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
+$ curl -H 'host: kube-app.yunlong.com' $ADDRESS
 This is the message from configmap env
 ```
 
@@ -407,7 +475,7 @@ root@kube-app-pod:/etc/config# ls
 application.yaml  message
 ```
 
-### 3.2 中间件与Kubernetes整合增强配置管理
+### 3.3 中间件与Kubernetes整合增强配置管理 (可选)
 
 在kube-app的build.gradle添加依赖：
 
@@ -524,7 +592,7 @@ spec:
         run: kube-app
     spec:
       containers:
-      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.2
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.2 # 可以直接使用该镜像、或者修改为自己的镜像
         name: kube-app
 ```
 
@@ -599,7 +667,7 @@ k rollout undo deployments/kube-app --to-revision=3
 ## 5. 还能优化些撒？
 
 > 思考1：在集群中运行应用程序可能有哪些问题？
-> 思考2：如果应用假死了呢？
+> 思考2：如何确定Pod是正常工作的？
 
 ### 5.1 存活状态：Liveness探针
 
@@ -713,7 +781,7 @@ spec:
         run: kube-app
     spec:
       containers:
-      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像，或者直接使用改镜像
         imagePullPolicy: IfNotPresent
         name: kube-app
         livenessProbe:
@@ -736,7 +804,7 @@ k apply -f deploy/manifests/kube-app-deployment.yaml
 访问应用：
 
 ```
-$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
+$ curl -H 'host: kube-app.yunlong.com' $ADDRESS # 修改为自己Namespace下ingress的地址
 ```
 
 ### 5.2 就绪状态：Readiness探针
@@ -761,7 +829,7 @@ spec:
         run: kube-app
     spec:
       containers:
-      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像，或者直接使用改镜像
         imagePullPolicy: IfNotPresent
         name: kube-app
         readinessProbe:
@@ -792,14 +860,14 @@ k apply -f deploy/manifests/kube-app-deployment.yaml
 尝试访问应用：
 
 ```
-$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
+$ curl -H 'host: kube-app.yunlong.com' $ADDRESS # 修改为自己Ingress的地址
 ```
 
 扩容应用后，再尝试访问应用
 
 ```
 k scale deployments/kube-app --replicas=3
-$ curl -H 'Host: kube-app.kubernetes101.com' $ADDRESS
+$ curl -H 'host: kube-app.yunlong.com' $ADDRESS # 修改为自己Ingress的地址
 ```
 
 ## 5.4 Pod生命周期总结
@@ -831,7 +899,7 @@ spec:
         - mountPath: /tmp
           name: timing
       containers:
-      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:2.0.3 #修改为自己的镜像，或者直接使用该镜像
         imagePullPolicy: IfNotPresent
         name: kube-app
         volumeMounts:
@@ -886,11 +954,11 @@ Kubernetes网络设计的原则：
 ```
 $ kubectl get pods -o wide --selector app=nginx
 NAME                     READY     STATUS    RESTARTS   AGE       IP             NODE
-nginx-85b44c86b8-q9t7t   1/1       Running   0          39s       172.16.2.215   cn-beijing.i-2ze52j61t5p9z4n60c9m
-nginx2-6f65c584d-nglvf   1/1       Running   0          12s       172.16.2.108   cn-beijing.i-2ze52j61t5p9z4n60c9l
+nginx-56f766d96f-2dl9t   1/1       Running   0          2m        172.16.2.229   cn-beijing.i-2ze52j61t5p9z4n60c9m
+nginx2-6f4bb4799-t84rh   1/1       Running   0          3m        172.16.2.125   cn-beijing.i-2ze52j61t5p9z4n60c9l
 ```
 
-以172.16.2.215访问172.16.2.108为例，解释Pod之间是如何访问的：
+以172.16.2.229访问172.16.2.125为例，解释Pod之间是如何访问的：
 
 查看集群所有节点
 
@@ -913,7 +981,7 @@ NAME                       DESIRED   CURRENT   READY     UP-TO-DATE   AVAILABLE 
 kube-flannel-ds            6         6         6         6            6           beta.kubernetes.io/arch=amd64     31d
 ```
 
-查看Flannel实例，并找到nginx-85b44c86b8-q9t7t（172.16.2.215）所在节点的flannel实例kube-flannel-ds-86d5j，以及nginx2-6f65c584d-nglvf（172.16.2.108）所对应的Flannel实例kube-flannel-ds-hjlb4。
+查看Flannel实例，并找到nginx-56f766d96f-2dl9t（172.16.2.229）所在节点的flannel实例kube-flannel-ds-86d5j，以及nginx2-6f4bb4799-t84rh（172.16.2.125）所对应的Flannel实例kube-flannel-ds-hjlb4。
 
 ```
 $ k -n kube-system get pods -o wide --selector app=flannel
@@ -940,7 +1008,7 @@ FLANNEL_IPMASQ=true
 
 #### 6.1.1 出口方向
 
-从nginx-85b44c86b8-q9t7t（172.16.2.215）所在节点的flannel实例kube-flannel-ds-86d5j查看网卡信息
+从nginx-56f766d96f-2dl9t（172.16.2.229）所在节点的flannel实例kube-flannel-ds-86d5j查看网卡信息
 
 ```
 $ k -n kube-system exec -it kube-flannel-ds-86d5j -c kube-flannel ifconfig
@@ -984,7 +1052,7 @@ veth00c70308 Link encap:Ethernet  HWaddr D2:D9:ED:7B:3F:A7
           RX bytes:717656154 (684.4 MiB)  TX bytes:108607531374 (101.1 GiB)
 ```
 
-其中veth00c70308是每个Pod实例中所有容器共享的network namespace。 并且通过网桥的方式链接到cni0网卡
+其中veth00c70308是每个Pod实例的虚拟网卡。 并且通过网桥的方式链接到cni0网卡
 
 ```
 $ k -n kube-system exec -it kube-flannel-ds-86d5j -c kube-flannel brctl show
@@ -1010,7 +1078,7 @@ cni0		8000.0a58ac100281	no		veth00c70308
 							veth3810c1b0
 ```
 
-从172.16.2.215向172.16.2.108，从源容器发出后通过网桥全部发送到cni0的网卡上。
+从172.16.2.229向172.16.2.125，从源容器发出后通过网桥全部发送到cni0的网卡上。
 
 查看系统路由表，遗憾的是在系统中找不到任何从cni0网卡向后转发的规则：
 
@@ -1029,12 +1097,12 @@ default         192.168.3.253   0.0.0.0         UG    0      0        0 eth0
 
 ![](./images/aliyun-vpc-route.png)
 
-从172.16.2.215发送到172.16.2.108的请求，匹配的路由记录为172.16.2.0/25。流量会被转发到
-主机i-2ze52j61t5p9z4n60c9l，即Pod实例nginx2-6f65c584d-nglvf（172.16.2.108）所在的主机。
+从172.16.2.225发送到172.16.2.125的请求，匹配的路由记录为172.16.2.0/25。流量会被转发到
+主机i-2ze52j61t5p9z4n60c9l，即Pod实例nginx2-6f65c584d-nglvf（172.16.2.125）所在的主机。
 
 #### 6.1.2 入口方向：
 
-出口方向，从源容器nginx-85b44c86b8-q9t7t（172.16.2.215）发送到nginx2-6f65c584d-nglvf（172.16.2.108)的流量已经正确的发送到目标节点i-2ze52j61t5p9z4n60c9l。
+出口方向，从源容器nginx-56f766d96f-2dl9t（172.16.2.229）发送到nginx2-6f4bb4799-t84rh（172.16.2.125)的流量已经正确的发送到目标节点i-2ze52j61t5p9z4n60c9l。
 
 查看接收流量主机的路由规则：
 
@@ -1049,7 +1117,7 @@ Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
 192.168.0.0     0.0.0.0         255.255.252.0   U     0      0        0 eth0
 ```
 
-根据主机路由表规则，发送到172.16.2.108的请求会落到路由表：
+根据主机路由表规则，发送到172.16.2.125的请求会落到路由表：
 
 ```
 172.16.2.0      0.0.0.0         255.255.255.128 U     0      0        0 cni0
@@ -1064,9 +1132,9 @@ Kubernetes中服务发现主要通过每个主机上的kube-proxy组件实现，
 以default命名空间下的nginx svc为例：
 
 ```
-$ kubectl get svc --selector run=nginx
+$ kubectl get svc --selector app=nginx
 NAME      TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
-nginx     ClusterIP   172.19.15.240   <none>        80/TCP    23s
+nginx     ClusterIP   172.19.0.166   <none>        80/TCP    1m
 ```
 
 查看Service详情，
@@ -1076,19 +1144,18 @@ $ kubectl describe svc nginx
 Name:              nginx
 Namespace:         default
 Labels:            app=nginx
-                   run=nginx
 Annotations:       <none>
-Selector:          app=nginx,run=nginx
+Selector:          app=nginx
 Type:              ClusterIP
-IP:                172.19.15.240
+IP:                172.19.0.166
 Port:              <unset>  80/TCP
 TargetPort:        80/TCP
-Endpoints:         172.16.2.109:80,172.16.2.215:80
+Endpoints:         172.16.2.125:80,172.16.2.229:80
 Session Affinity:  None
 Events:            <none>
 ```
 
-上述信息中可以看出该svc的ClusterIP为172.19.15.240，后端代理了2个Pod实例:172.16.2.109:80,172.16.2.215:80。
+上述信息中可以看出该svc的ClusterIP为172.19.0.166，后端代理了2个Pod实例:172.16.2.125:80,172.16.2.229:80
 
 在任意Node节点中找到flannel实例，查看iptables信息：
 
@@ -1101,31 +1168,33 @@ $ k -n kube-system exec -it kube-flannel-ds-hjlb4 -c kube-flannel -- iptables -S
 # 省略出书
 ```
 
-根据路由转发规则，从Pod访问ClusterIP 172.19.15.240的80端口的请求，匹配到转发规则：
+根据路由转发规则，从Pod访问ClusterIP 172.19.0.166的80端口的请求，匹配到转发规则：
 
 ```
--A KUBE-SERVICES -d 172.19.15.240/32 -p tcp -m comment --comment "default/nginx: cluster IP" -m tcp --dport 80 -j KUBE-SVC-4N57TFCL4MD7ZTDA
-```
-
-直接跳转到KUBE-SVC-4N57TFCL4MD7ZTD：
+-A KUBE-SERVICES ! -s 172.16.0.0/16 -d 172.19.0.166/32 -p tcp -m comment --comment "default/nginx: cluster IP" -m tcp --dport 80 -j KUBE-MARK-MASQ
+-A KUBE-SERVICES -d 172.19.0.166/32 -p tcp -m comment --comment "default/nginx: cluster IP" -m tcp --dport 80 -j KUBE-SVC-4N57TFCL4MD7ZTDA
 
 ```
--A KUBE-SVC-4N57TFCL4MD7ZTDA -m comment --comment "default/nginx:" -m statistic --mode random --probability 0.50000000000 -j KUBE-SEP-YX3BAWKTRU6SUUGM
--A KUBE-SVC-4N57TFCL4MD7ZTDA -m comment --comment "default/nginx:" -j KUBE-SEP-QKRDMLY5MWSFYSJG
-```
 
-这里利用了iptables的--probability的特性，使连接有50%的概率进入到KUBE-SEP-YX3BAWKTRU6SUUGM，KUBE-SEP-YX3BAWKTRU6SUUGM的作用是把请求转发到172.16.2.109:80。
+直接跳转到KUBE-SVC-4N57TFCL4MD7ZTDA:
 
 ```
--A KUBE-SEP-YX3BAWKTRU6SUUGM -s 172.16.2.109/32 -m comment --comment "default/nginx:" -j KUBE-MARK-MASQ
--A KUBE-SEP-YX3BAWKTRU6SUUGM -p tcp -m comment --comment "default/nginx:" -m tcp -j DNAT --to-destination 172.16.2.109:80
+-A KUBE-SVC-4N57TFCL4MD7ZTDA -m comment --comment "default/nginx:" -m statistic --mode random --probability 0.50000000000 -j KUBE-SEP-ZWDBLNQ3XRBMUP33
+-A KUBE-SVC-4N57TFCL4MD7ZTDA -m comment --comment "default/nginx:" -j KUBE-SEP-H2XFNPZ6MLIHFOVM
 ```
 
-另外50%的请求，则可能进入到KUBE-SEP-QKRDMLY5MWSFYSJG，同理，该规则的作用是把请求转发到172.16.2.215:80:
+这里利用了iptables的--probability的特性，使连接有50%的概率进入到KUBE-SEP-ZWDBLNQ3XRBMUP33，KUBE-SEP-H2XFNPZ6MLIHFOVM的作用是把请求转发到172.16.2.125:80。
 
 ```
--A KUBE-SEP-QKRDMLY5MWSFYSJG -s 172.16.2.215/32 -m comment --comment "default/nginx:" -j KUBE-MARK-MASQ
--A KUBE-SEP-QKRDMLY5MWSFYSJG -p tcp -m comment --comment "default/nginx:" -m tcp -j DNAT --to-destination 172.16.2.215:80
+-A KUBE-SEP-ZWDBLNQ3XRBMUP33 -s 172.16.2.125/32 -m comment --comment "default/nginx:" -j KUBE-MARK-MASQ
+-A KUBE-SEP-ZWDBLNQ3XRBMUP33 -p tcp -m comment --comment "default/nginx:" -m tcp -j DNAT --to-destination 172.16.2.125:80
+```
+
+另外50%的请求，则可能进入到KUBE-SEP-QKRDMLY5MWSFYSJG，同理，该规则的作用是把请求转发到172.16.2.229:80:
+
+```
+-A KUBE-SEP-H2XFNPZ6MLIHFOVM -s 172.16.2.229/32 -m comment --comment "default/nginx:" -j KUBE-MARK-MASQ
+-A KUBE-SEP-H2XFNPZ6MLIHFOVM -p tcp -m comment --comment "default/nginx:" -m tcp -j DNAT --to-destination 172.16.2.229:80
 ```
 
 ## 7 课后扩展练习
