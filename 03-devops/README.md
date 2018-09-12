@@ -382,6 +382,20 @@ prometheus     prometheus.$NAMESPACE.com   39.96.133.114   80        18m
 
 > 讲师时间
 
+Tips:
+
+正则匹配
+
+```
+/.*instance="([^"]*).*/
+```
+
+查询主机CPU：
+
+```
+1 - avg without(cpu) (rate(node_cpu{mode="idle"}[2m]))
+```
+
 ## 5. Prometheus下的服务发现
 
 创建文件`manifests/prometheus-v4-setup.yaml`,如下所示：
