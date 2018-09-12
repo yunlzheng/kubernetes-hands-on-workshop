@@ -2,3 +2,4 @@
 samples/*.zip
 config
 samples/kube-app/bin
+*.gz

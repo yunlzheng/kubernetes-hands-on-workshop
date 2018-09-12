@@ -1,0 +1,63 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: grafana
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: grafana.yunlong.com
+    http:
+      paths:
+      - backend:
+          serviceName: grafana
+          servicePort: 3000
+---
+apiVersion: v1
+kind: "Service"
+metadata:
+  name: grafana
+  labels:
+    name: prometheus
+spec:
+  ports:
+  - name: grafana
+    protocol: TCP
+    port: 3000
+    targetPort: 3000
+  selector:
+    app: grafana
+  type: ClusterIP
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: grafana
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: admin
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: k8s101
+        image: grafana/grafana:5.2.4
+        imagePullPolicy: IfNotPresent
+        name: grafana
+        volumeMounts:
+        - mountPath: /var/lib/grafana
+          name: storage
+      restartPolicy: Always
+      volumes:
+      - emptyDir: {}
+        name: storage
