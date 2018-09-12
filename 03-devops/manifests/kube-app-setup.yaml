@@ -1,0 +1,54 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: kube-app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: kube-app.yunlong.com # 修改为自己的命名空间
+    http:
+      paths:
+      - backend:
+          serviceName: kube-app
+          servicePort: 7001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    run: kube-app
+  name: kube-app
+spec:
+  ports:
+  - port: 7001
+    protocol: TCP
+    targetPort: 7001
+  selector:
+    run: kube-app
+  type: ClusterIP
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: kube-app
+  name: kube-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: kube-app
+  template:
+    metadata:
+      annotations:
+        k8s.io/should_be_scraped: "true"
+        k8s.io/metric_path: /actuator/prometheus
+        k8s.io/metric_port: "7001"
+      labels:
+        run: kube-app
+    spec:
+      containers:
+      - image: registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:3.0.0
+        imagePullPolicy: Always
+        name: kube-app
