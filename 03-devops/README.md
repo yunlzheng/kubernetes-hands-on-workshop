@@ -417,11 +417,6 @@ data:
     - job_name: 'node'
       kubernetes_sd_configs:
       - role: node
-      relabel_configs:
-      - source_labels: [__meta_kubernetes_node_address_InternalIP]
-        regex: (.+)
-        target_label: __address__
-        replacement: ${1}:9100
 ```
 
 更新Prometheus：
