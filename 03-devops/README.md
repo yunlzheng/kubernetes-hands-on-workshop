@@ -384,7 +384,7 @@ prometheus     prometheus.$NAMESPACE.com   39.96.133.114   80        18m
 
 ## 5. Prometheus下的服务发现
 
-创建文件`manifests/prometheus-v4-setup.yaml`,如下所示：
+创建文件`manifests/prometheus-setup-v4.yaml`,如下所示：
 
 ```
 apiVersion: v1
@@ -416,9 +416,97 @@ data:
 $ k apply -f manifests/prometheus-setup-v4.yaml
 ```
 
-> 注意需要手动删除一下Promtheus的Pod实例
+Prometheus无法访问Kubernetes API,需要进行RBAC授权创建文件`manifests/prometheus-rbac-setup.yaml`
+
+```
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: $NAMESPACE # 请修改为自己的命名空间
+```
+
+RBAC授权
+
+```
+k apply -f manifests/prometheus-rbac-setup.yaml
+```
+
+修改Prometheus部署，添加ServiceAccount关联：
+
+
+```
+$ k edit deployments/prometheus
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    name: prometheus
+  name: prometheus
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      serviceAccount: prometheus
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.2.1
+        command:
+        - "/bin/prometheus"
+        args:
+        - "--config.file=/etc/prometheus/prometheus.yml"
+        ports:
+        - containerPort: 9090
+          protocol: TCP
+        volumeMounts:
+        - mountPath: "/etc/prometheus"
+          name: prometheus-config
+      volumes:
+      - name: prometheus-config
+        configMap:
+          name: prometheus-config
+```
 
 浏览器打开访问http://prometheus.$NAMESPACE.com
+
 
 > 讲师时间
 
