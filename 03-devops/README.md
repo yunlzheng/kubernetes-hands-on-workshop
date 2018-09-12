@@ -171,6 +171,69 @@ rate(http_requests_total[2m])
 
 ## 3. 使用Prometheus采集主机状态
 
+安装Node Exporter,创建文件`manifests/node-exporter-setup.yaml`
+
+```
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: blackbox-exporter
+  namespace: kube-public
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: blackbox-exporter.yunlong.com
+    http:
+      paths:
+      - backend:
+          serviceName: blackbox-exporter
+          servicePort: 9115
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: blackbox-exporter
+  name: blackbox-exporter
+  namespace: kube-public
+spec:
+  ports:
+  - name: blackbox
+    port: 9115
+    protocol: TCP
+  selector:
+    app: blackbox-exporter
+  type: ClusterIP
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: blackbox-exporter
+  name: blackbox-exporter
+  namespace: kube-public
+spec:
+  selector:
+    matchLabels:
+      app: blackbox-exporter
+  template:
+    metadata:
+      labels:
+        app: blackbox-exporter
+    spec:
+      containers:
+      - image: prom/blackbox-exporter
+        imagePullPolicy: IfNotPresent
+        name: blackbox-exporter
+```
+
+部署node exporter
+
+```
+k apply -f manifests/node-exporter-setup.yaml -n kube-system
+```
+
 创建`manifests/prometheus-setup-v2.yaml`，内容如下所示：
 
 ```
