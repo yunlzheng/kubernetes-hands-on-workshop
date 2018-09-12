@@ -176,57 +176,52 @@ rate(http_requests_total[2m])
 
 ```
 apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: blackbox-exporter
-  namespace: kube-public
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-spec:
-  rules:
-  - host: blackbox-exporter.yunlong.com
-    http:
-      paths:
-      - backend:
-          serviceName: blackbox-exporter
-          servicePort: 9115
----
-apiVersion: v1
-kind: Service
+kind: DaemonSet
 metadata:
   labels:
-    app: blackbox-exporter
-  name: blackbox-exporter
-  namespace: kube-public
-spec:
-  ports:
-  - name: blackbox
-    port: 9115
-    protocol: TCP
-  selector:
-    app: blackbox-exporter
-  type: ClusterIP
----
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  labels:
-    app: blackbox-exporter
-  name: blackbox-exporter
-  namespace: kube-public
+    app: prometheus-node-exporter
+  name: prometheus-node-exporter
+  namespace: kube-system
 spec:
   selector:
     matchLabels:
-      app: blackbox-exporter
+      app: prometheus-node-exporter
   template:
     metadata:
       labels:
-        app: blackbox-exporter
+        app: prometheus-node-exporter
     spec:
       containers:
-      - image: prom/blackbox-exporter
+      - args:
+        - --path.procfs=/host/proc
+        - --path.sysfs=/host/sys
+        - --web.listen-address=0.0.0.0:9100
+        image: quay.io/prometheus/node-exporter:v0.15.2
         imagePullPolicy: IfNotPresent
-        name: blackbox-exporter
+        name: node-exporter
+        ports:
+        - containerPort: 9100
+          hostPort: 9100
+          name: metrics
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /host/proc
+          name: proc
+          readOnly: true
+        - mountPath: /host/sys
+          name: sys
+          readOnly: true
+      hostNetwork: true
+      hostPID: true
+      volumes:
+      - hostPath:
+          path: /proc
+          type: ""
+        name: proc
+      - hostPath:
+          path: /sys
+          type: ""
+        name: sys
 ```
 
 部署node exporter
