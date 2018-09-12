@@ -19,6 +19,7 @@ $ k delete ingress --all
 $ k delete deployments --all
 $ k delete service --all
 $ k delete pod --all
+$ k delete configmap --all
 ```
 
 * 准备镜像仓库：
