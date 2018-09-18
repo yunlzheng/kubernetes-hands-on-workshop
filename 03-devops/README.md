@@ -1,4 +1,4 @@
-# Day 3 - DevOps In Kubernetes
+# Day 3 - 使用Prometheus监控应用
 
 ## 1. 准备工作
 

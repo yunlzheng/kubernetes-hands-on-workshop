@@ -1,4 +1,4 @@
-# Day 1 - Kubernetes Core Concept
+# Day 1 - Kubernetes应用管理模型
 
 今天将从一个Spring Cloud的项目实例开始，了解Kubernetes相关的核心概念。
 

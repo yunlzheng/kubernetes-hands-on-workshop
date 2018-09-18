@@ -1,4 +1,4 @@
-# Day 2 - Kubernetes Core Concept
+# Day 2 - Kubernetes应用管理模型
 
 ## 0. 课前准备工作
 
