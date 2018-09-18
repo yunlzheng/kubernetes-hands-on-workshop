@@ -282,8 +282,146 @@ STATUS: DEPLOYED
 
 ## 4. 构建基于Helm的持续交付流水线
 
-TODO
-
+```
+docker run -itd -p 8080:8080 -v /var/run/docker.sock:/var/run/docker.sock -v ~/.kube:/root/.kube yunlzheng/jenkins2:lts-k8s
 ```
 
+打开jenkins页面[http://localhost:8080/](http://localhost:8080/)，默认用户名admin和密码password
+
+定义持续交付流程
+
+![](http://7pn5d3.com1.z0.glb.clouddn.com/ci-cd-jenkins-helm-k8s.png)
+
+### 4.1 创建流水线
+
+提交代码带Github仓库
+
+```
+$ git init
+$ git remote add origin git@github.com:yunlzheng/kube-app.git # 关联自己的仓库
+$ git add .
+$ git commit -m 'init project'
+$ git push origin master
+```
+
+进入[blue ocean](http://localhost:8080/blue/organizations/jenkins/pipelines)，并创建流水线。关联kube-app代码仓库。
+
+![](http://7pn5d3.com1.z0.glb.clouddn.com/create_github_pipeline.png)
+
+创建一个默认的Jenkinsfile，保存并自动提交到master主干:
+
+![](http://7pn5d3.com1.z0.glb.clouddn.com/create_default_stage.png)
+
+同步更新
+
+```
+git pull origin master
+```
+
+查看Jenkinsfile：
+
+```
+pipeline {
+  agent any
+  stages {
+    stage('build') {
+      steps {
+        sh 'echo hello'
+      }
+    }
+  }
+}
+```
+
+### 4.2 构建镜像
+
+```groovy
+stage('build') {
+    steps {
+        // 修改为自己的镜像
+        sh 'docker build -t registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:$BUILD_NUMBER .'
+    }
+}
+```
+
+触发流水线构建
+
+### 4.3 Push镜像
+
+添加镜像认证信息：[http://localhost:8080/job/kube-app/credentials/store/folder/domain/_/](http://localhost:8080/job/kube-app/credentials/store/folder/domain/_/)
+
+![](http://7pn5d3.com1.z0.glb.clouddn.com/docker_credentialsId.png)
+
+```groovy
+stage('push image') {
+    steps {
+        withDockerRegistry([credentialsId: 'dockerhub', url: 'https://registry.cn-hangzhou.aliyuncs.com']) {
+            //修改为自己的镜像
+            sh 'docker push registry.cn-hangzhou.aliyuncs.com/k8s-mirrors/kube-app:$BUILD_NUMBER'
+        }
+    }
+}
+```
+
+触发流水线构建
+
+### 4.3 发布Chart
+
+将Helm仓库用户名和密码保存为credentials[http://localhost:8080/job/kube-app/credentials/store/folder/domain/_/](http://localhost:8080/job/kube-app/credentials/store/folder/domain/_/)
+
+![](http://7pn5d3.com1.z0.glb.clouddn.com/helm_credentislsid.png)
+
+```groovy
+
+environment {
+    HELM_USERNAME = credentials('HELM_USERNAME')
+    HELM_PASSWORD = credentials('HELM_PASSWORD')
+}
+
+// stages{
+
+stage('push chart') {
+    steps {
+        script {
+            def filename = 'helm/kube-app/values.yaml'
+            def data = readYaml file: filename
+            data.image.tag = env.BUILD_NUMBER
+            sh "rm $filename"
+            writeYaml file: filename, data: data
+        }
+
+        script {
+            def filename = 'helm/kube-app/Chart.yaml'
+            def data = readYaml file: filename
+            data.version = env.BUILD_NUMBER
+            sh "rm $filename"
+            writeYaml file: filename, data: data
+        }
+
+        sh 'helm push helm/kube-app https://repomanage.rdc.aliyun.com/helm_repositories/1148-test --username=$HELM_USERNAME --password=$HELM_PASSWORD  --version=$BUILD_NUMBER'
+    }
+}
+```
+
+### 4.4 部署Chart
+
+```
+stage('Deploy To Dev') {
+  steps {
+        input 'Do you approve dev?'
+        sh 'helm upgrade kube-app-dev --install --namespace=yunlong helm/kube-app'
+  }
+}
+```
+
+## Tips
+
+```
+script {                
+    env.RELEASE = input message: 'Please input the release version',
+    ok: 'Deploy',
+    parameters: [
+        [$class: 'TextParameterDefinition', defaultValue: '0.0.1', description: 'Cureent release version', name: 'release']
+    ]
+}
 ```
