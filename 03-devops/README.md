@@ -521,7 +521,7 @@ spec:
 
 ## 6. 使用Relabel定义服务发现过程
 
-创建文件`manifests/prometheus-v5-setup.yaml`,如下所示：
+创建文件`manifests/prometheus-setup-v5.yaml`,如下所示：
 
 ```
 apiVersion: v1
@@ -553,7 +553,7 @@ data:
 ```
 
 ```
-$ k apply -f manifests/prometheus-setup-v5.yaml
+$ k apply -f manifests/prometheus-setup=v5.yaml
 ```
 
 > 注意需要手动删除一下Promtheus的Pod实例
@@ -677,7 +677,7 @@ spec:
 创建应用：
 
 ```
-k create -f kube-app-setup.yaml
+k apply -f manifests/kube-app-setup.yaml
 ```
 
 添加域名映射：
